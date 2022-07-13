@@ -15,6 +15,7 @@ PAUSE
 
 python Hpack0cd.py unpack "%src%\0.cd" "%dst%\0.cd.txt" %fenc% || GOTO :error
 python EncConv.py %fenc% "%dst%\0.cd.txt" %tenc% "%dst%\0.cd.txt" || GOTO :error
+python Hpack1cd.py unpack "%src%\1.cd" "%dst%\1.cd.txt" || GOTO :error
 FOR %%i IN ("%src%\00??.cd", "%src%\01??.cd") DO (
 python HpackScd.py unpack "%src%\%%~nxi" "%dst%\%%~nxi.txt" %fenc% || GOTO :error
 python EncConv.py %fenc% "%dst%\%%~nxi.txt" %tenc% "%dst%\%%~nxi.txt" || GOTO :error

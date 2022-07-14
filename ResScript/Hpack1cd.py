@@ -37,7 +37,7 @@ def Unpack1cd(filepath, outpath):
     res.append((idx, name.decode()))
   with open(outpath, 'w') as f: # defaults to utf-8
     for i,s in res:
-      f.write('Idx {}, {:5}"{}"\n'.format(i, '', s))
+      f.write('Idx {}, {:5}"{}"\n'.format(hex(i), '', s))
   print('Hpack1cd: {} variables processed'.format(cnt))
 
 def Repack1cd(filepath, outpath):
@@ -46,7 +46,7 @@ def Repack1cd(filepath, outpath):
   res = []
   for l in lines:
     p = [k.strip() for k in l.split(',')]
-    i = int(p[0].split(' ')[1])
+    i = int(p[0].split(' ')[1].strip(), 16)
     s = p[1][p[1].find('"')+1 : p[1].rfind('"')]
     res.append((i, s))
   cs = CStruct()

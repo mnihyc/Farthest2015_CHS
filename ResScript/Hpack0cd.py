@@ -55,8 +55,8 @@ def Unpack0cd(filepath, outpath, enc):
   with open(outpath, 'w', encoding=enc) as f:
     for i in range(len(res)):
       for a,b,c,d,s in res[i]:
-        f.write('Idx {}, {:10}, {:10}, {:10}, {:10}, {:5}"{}"\n'.format(
-                  i, a, b, c, d, '', s.decode(enc)))
+        f.write('Blk {}, {:10}, {:10}, {:10}, {:10}, {:5}"{}"\n'.format(
+                  i, hex(a), hex(b), hex(c), hex(d), '', s.decode(enc)))
   print('Hpack0cd: {}/{} blocks processed'.format(cnt, len([1 for i in res for j in i])))
 
 def Repack0cd(filepath, outpath, enc):
@@ -74,7 +74,7 @@ def Repack0cd(filepath, outpath, enc):
       tres = []
       idx = nidx
       tpos = 0
-    a,b,c,d = int(p[1]),int(p[2]),int(p[3]),int(p[4])
+    a,b,c,d = int(p[1],16),int(p[2],16),int(p[3],16),int(p[4],16)
     s = p[5][p[5].find('"')+1 : p[5].rfind('"')].encode(enc)
     tres.append((a,b,c,d,s,tpos))
     tpos = tpos + cs.calcsize('<I{}sb4IH'.format(len(s))) # block pos

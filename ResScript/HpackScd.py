@@ -5,9 +5,11 @@ enc = ''
 def RoundNameFunc(ts):
   for i in range(0, len(ts)):
     ts[i] = ts[i] ^ 0x16
+  return ts
 def RoundTextFunc(ts):
   for i in range(0, len(ts)):
     ts[i] = ts[i] ^ 0x53
+  return ts
 
 '''
 One possible path:
@@ -30,6 +32,99 @@ struct
 }pack;
 '''
 
+
+'''
+  Custom structures extracted
+'''
+def InstWrapFunc412DD3(idf, a, cs, trd, **kwargs):
+  # Assuming this from funcs_412DD3 sub_412DB0
+  idfmap = {
+    0: ('skip', 0),
+    1: ('<2B', 2),
+    2: ('', 0),
+    3: ('<2H', 2),
+    4: ('<H', 1),
+    5: ('', 0),
+    6: ('<I', 1),
+    7: ('', 0),
+    8: ('<3B', 3),
+    9: ('', 0),
+    10: ('<5I', 5),
+    11: ('<2H', 2),
+    12: ('<7I', 7),
+    13: ('<4I', 4),
+  }
+  if 's' not in kwargs.keys():
+    if idfmap[idf][1] == 0:
+      return ('('+','.join(['{}',]*len(a))+')').format(*map(hex,a))
+    else:
+      f, n = idfmap[idf]
+      e = trd.unpack(f)
+      return ('('+'{},'*len(a)+'('+','.join(['{}',]*n)+'))').format(*map(hex,a), *map(hex,e))
+  else:
+    if idfmap[idf][1] == 0:
+      pass
+    else:
+      f, n = idfmap[idf]
+      trd.pack(f, *map(lambda x: int(x,16), a))
+    return
+
+def InstWrapFunc415283(idf, a, cs, trd, **kwargs):
+  # Assuming this from funcs_415283 sub_4151D0 and test results
+  idfmap = {
+    0: ('skip', 0),
+    1: ('', 0),
+    2: ('<14B', 14), # Tested
+    3: ('', 0),
+    4: ('<41B', 41), # Tested
+    5: ('<9I', 9), # Tested
+    6: ('', 0),
+    7: ('', 0),
+    8: ('', 0),
+  }
+  if 's' not in kwargs.keys():
+    if idfmap[idf][1] == 0:
+      return ('('+','.join(['{}',]*len(a))+')').format(*map(hex,a))
+    else:
+      f, n = idfmap[idf]
+      e = trd.unpack(f)
+      return ('('+'{},'*len(a)+'('+','.join(['{}',]*n)+'))').format(*map(hex,a), *map(hex,e))
+  else:
+    if idfmap[idf][1] == 0:
+      pass
+    else:
+      f, n = idfmap[idf]
+      trd.pack(f, *map(lambda x: int(x,16), a))
+    return
+
+def InstWrapSub413350(a, cs, trd, **kwargs):
+  # Assuming this from test results
+  idfmap = {
+    512: ('<4I', 4), # Tested
+    64: ('<7I', 7), # Tested
+    2147483649: ('<H', 1), # Tested
+    320: ('<38B', 38), # Tested
+  }
+  if 's' not in kwargs.keys():
+    idf = a[3]
+    if idfmap.get(idf, ('', 0))[1] == 0:
+      return '({},{},{},{})'.format(*map(hex,a))
+    else:
+      f, n = idfmap[idf]
+      e = trd.unpack(f)
+      return ('({},{},{},{},('+','.join(['{}',]*n)+'))').format(*map(hex,a), *map(hex,e))
+  else:
+    if idfmap.get(idf, ('', 0))[1] == 0:
+      pass
+    else:
+      f, n = idfmap[idf]
+      trd.pack(f, *map(lambda x: int(x,16), a))
+    return
+
+
+'''
+  Instructions extracted
+'''
 # N N N / N
 def InstNone(**kwargs):
   cs = kwargs['cs']
@@ -83,12 +178,12 @@ def InstWiGVar(**kwargs):
   if 's' not in kwargs.keys():
     a, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction WiGVar offset error')
+      raise Exception('Instruction WiGVar offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<5H', off)
     return '{}, ({},{},{},{},{})'.format(hex(a), *map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a = int(p[0],16)
     off = trd.pos
     trd.pack('<5H', *map(lambda x: int(x,16), p[1:]))
@@ -112,12 +207,12 @@ def InstWDNII(**kwargs):
   if 's' not in kwargs.keys():
     a, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction WDNII offset error')
+      raise Exception('Instruction WDNII offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<II', off)
     return '{}, ({},{})'.format(hex(a), *map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a = int(p[0],16)
     off = trd.pos
     trd.pack('<II', *map(lambda x: int(x,16), p[1:]))
@@ -130,13 +225,13 @@ def InstExScrVIdx(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction ExScrVIdx offset error')
+      raise Exception('Instruction ExScrVIdx offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a, num = trd.unpack('<II', off)
     t = trd.unpack('<{}I'.format(num))
-    return ('({},('+('{},'*num)[:-1]+'))').format(*map(hex,t))
+    return ('({},('+('{},'*num)[:-1]+'))').format(hex(a), *map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     a, num = int(p[0],16), len(p)-2
     trd.pack('<II{}I'.format(num), a, num, *map(lambda x: int(x,16), p[2:]))
@@ -149,13 +244,13 @@ def InstExScrVVar(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction ExScrVVar offset error')
+      raise Exception('Instruction ExScrVVar offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a, num = trd.unpack('<II', off)
     t = trd.unpack('<{}I'.format(num*2))
     return ('({},'+('({},{})'*num)[:-1]+')').format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     a, num = int(p[0],16), (len(p)-2)//2
     trd.pack('<II{}I'.format(num*2), a, num, *map(lambda x: int(x,16), p[2:]))
@@ -168,12 +263,12 @@ def InstNDNII(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction NDNII offset error')
+      raise Exception('Instruction NDNII offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<II', off)
     return '({},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<II', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -185,12 +280,12 @@ def InstLoadSimpStr(**kwargs):
   if 's' not in kwargs.keys():
     a, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction LoadSimpStr offset error')
-    s = trd.unpack('<{}s'.format(a), off)
+      raise Exception('Instruction LoadSimpStr offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+    s, = trd.unpack('<{}s'.format(a), off)
     return '("{}")'.format(s.decode(enc))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     s = p[0][p[0].find('"')+1 : p[0].rfind('"')].encode(enc)
     off = trd.pos
     trd.pack('<{}s'.format(len(s)), s)
@@ -220,7 +315,7 @@ def InstShowText(**kwargs):
   if 's' not in kwargs.keys():
     a0, off0, _ = cs.unpack('<HII')
     if off0 != trd.pos:
-      raise Exception('Instruction ShowText offset error')
+      raise Exception('Instruction ShowText offset error, {} expected, {} got'.format(hex(off0), hex(trd.pos)))
     a, off, idx, cnt = trd.unpack('<IIII', off0)
     res = []
     for i in range(cnt):
@@ -229,17 +324,17 @@ def InstShowText(**kwargs):
       s = bytes(RoundTextFunc(bytearray(s))) # decryption
       res.append(s.decode(enc))
     b, c = trd.unpack('<II')
-    return '{}, ({},'+'"{}",'*cnt+'{},{},{})'.format(hex(a0), hex(idx), *res, *map(hex,(a,b,c)))
+    return ('{}, ({},'+'"{}",'*cnt+'{},{},{})').format(hex(a0), hex(idx), *res, *map(hex,(a,b,c)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a0, idx = int(p[0],16), int(p[1],16)
     c,b,a = int(p[-1],16),int(p[-2],16),int(p[-3],16)
     res =[k[k.find('"')+1 : k.rfind('"')].encode(enc) for k in p[2:-3]]
     off0 = trd.pos
     trd.pack('<IIII', a, 8+sum([len(p)+4 for p in res]), idx, len(res))
     for p in res:
-      p = s = bytes(RoundTextFunc(bytearray(s))) # encryption
+      p = bytes(RoundTextFunc(bytearray(p))) # encryption
       trd.pack('<I{}s'.format(len(p)), len(p), p)
     trd.pack('<II', b, c)
     return cs.pack('<HII', a0, off0, 0)
@@ -261,16 +356,18 @@ def InstTextRbFS(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction TextRbFS offset error')
+      raise Exception('Instruction TextRbFS offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a,b,c,d = trd.unpack('<HHII', off)
     l, = trd.unpack('<I')
     s, = trd.unpack('<{}s'.format(l))
+    s = bytes(RoundTextFunc(bytearray(s))) # decryption
     return '({},{},{},{},"{}")'.format(*map(hex,(a,b,c,d)), s.decode(enc))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a,b,c,d = map(lambda x: int(x,16), p[:4])
     s = p[4][p[4].find('"')+1 : p[4].rfind('"')].encode(enc)
+    s = bytes(RoundTextFunc(bytearray(s))) # encryption
     off = trd.pos
     trd.pack('<HHIII{}s'.format(len(s)), a, b, c, d, len(s), s)
     return cs.pack('<HII', 0, off, 0)
@@ -292,12 +389,12 @@ def InstTextHypLnk(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction TextHypLnk offset error')
+      raise Exception('Instruction TextHypLnk offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a,b,c,var,idx,f = trd.unpack('<HHHIII', off)
     return '({},{},{},{},{},{})'.format(*map(hex,(a,b,c,var,idx,f)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a,b,c,var,idx,f = map(lambda x: int(x,16), p)
     off = trd.pos
     trd.pack('<HHHIII', a, b, c, var, idx, f)
@@ -318,12 +415,12 @@ def InstTextFont(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction TextFont offset error')
+      raise Exception('Instruction TextFont offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a,b,c,d,e,f = trd.unpack('<HHHHII', off)
     return '({},{},{},{},{},{})'.format(*map(hex,(a,b,c,d,e,f)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a,b,c,d,e,f = map(lambda x: int(x,16), p)
     off = trd.pos
     trd.pack('<HHHHII', a, b, c, d, e, f)
@@ -344,12 +441,12 @@ def InstGLSPTextFont(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction GLSPTextFont offset error')
+      raise Exception('Instruction GLSPTextFont offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a,b,c = trd.unpack('<HII', off)
     return '({},{},{})'.format(*map(hex,(a,b,c)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a,b,c = map(lambda x: int(x,16), p)
     off = trd.pos
     trd.pack('<HII', a, b, c)
@@ -383,12 +480,12 @@ def InstAOSndB(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AOSndB offset error')
+      raise Exception('Instruction AOSndB offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a,b,c,d,e = trd.unpack('<BBIIB', off)
     return '({},{},{},{},{})'.format(*map(hex,(a,b,c,d,e)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a,b,c,d,e = map(lambda x: int(x,16), p)
     off = trd.pos
     trd.pack('<BBIIB', a, b, c, d, e)
@@ -409,12 +506,12 @@ def InstAOSndC(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AOSndC offset error')
+      raise Exception('Instruction AOSndC offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a,b,c,d = trd.unpack('<BBII', off)
     return '({},{},{},{})'.format(*map(hex,(a,b,c,d)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a,b,c,d = map(lambda x: int(x,16), p)
     off = trd.pos
     trd.pack('<BBII', a, b, c, d)
@@ -425,7 +522,7 @@ Custom Structure from ScriptInstruction_0x59
 struct
 {
    int a; // unknown
-   byte b,c; // unknown
+   short b,c; // unknown
 }custom;
 '''
 # N D N / Custom
@@ -435,15 +532,15 @@ def InstSndObj2(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction SndObj2 offset error')
-    a,b,c = trd.unpack('<IBB', off)
+      raise Exception('Instruction SndObj2 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+    a,b,c = trd.unpack('<IHH', off)
     return '({},{},{})'.format(*map(hex,(a,b,c)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a,b,c = map(lambda x: int(x,16), p)
     off = trd.pos
-    trd.pack('<IBB', a, b, c)
+    trd.pack('<IHH', a, b, c)
     return cs.pack('<HII', 0, off, 0)
 
 '''
@@ -462,12 +559,12 @@ def InstSndObj3(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction SndObj3 offset error')
+      raise Exception('Instruction SndObj3 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a,b,c = trd.unpack('<IBI', off)
     return '({},{},{})'.format(*map(hex,(a,b,c)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a,b,c = map(lambda x: int(x,16), p)
     off = trd.pos
     trd.pack('<IBI', a, b, c)
@@ -492,7 +589,7 @@ def InstScrSelTxt(**kwargs):
   if 's' not in kwargs.keys():
     cnt, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction ScrSelTxt offset error')
+      raise Exception('Instruction ScrSelTxt offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     trd.unpack('', off)
     res = []
     for i in range(cnt):
@@ -500,10 +597,10 @@ def InstScrSelTxt(**kwargs):
       s, = trd.unpack('<{}s'.format(l))
       s = bytes(RoundTextFunc(bytearray(s))) # decryption
       res.append(s.decode(enc))
-    return '('+','.join(['"{}"',]*cnt)+')'.format(*res)
+    return ('('+','.join(['"{}"',]*cnt)+')').format(*res)
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     cnt = len(p)
     off = trd.pos
     for s in p:
@@ -533,7 +630,7 @@ def InstScrSelTxtC(**kwargs):
   if 's' not in kwargs.keys():
     cnt, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction ScrSelTxt offset error')
+      raise Exception('Instruction ScrSelTxt offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a = trd.unpack('<I', off)
     res = []
     for i in range(cnt):
@@ -541,10 +638,10 @@ def InstScrSelTxtC(**kwargs):
       s, = trd.unpack('<{}s'.format(l))
       s = bytes(RoundTextFunc(bytearray(s))) # decryption
       res.append(s.decode(enc))
-    return '({}, '+','.join(['"{}"',]*cnt)+')'.format(hex(a), *res)
+    return ('({}, '+','.join(['"{}"',]*cnt)+')').format(hex(a), *res)
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a, p = int(p[0],16), p[1:]
     cnt = len(p)
     off = trd.pos
@@ -576,7 +673,7 @@ def InstSSTxtVarA(**kwargs):
   if 's' not in kwargs.keys():
     cnt, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction SSTxtVarA offset error')
+      raise Exception('Instruction SSTxtVarA offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     trd.unpack('', off)
     var = []
     for i in range(cnt):
@@ -588,10 +685,10 @@ def InstSSTxtVarA(**kwargs):
       s, = trd.unpack('<{}s'.format(l))
       s = bytes(RoundTextFunc(bytearray(s))) # decryption
       res.append(s.decode(enc))
-    return '('+'{},'*cnt+','.join(['"{}"',]*cnt)+')'.format(*map(lambda x: int(x,16), var), *res)
+    return ('('+'{},'*cnt+','.join(['"{}"',]*cnt)+')').format(*map(lambda x: int(x,16), var), *res)
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     cnt = len(p)//2
     off = trd.pos
     for i in range(cnt):
@@ -625,7 +722,7 @@ def InstSSTxtVarB(**kwargs):
   if 's' not in kwargs.keys():
     cnt, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction SSTxtVarB offset error')
+      raise Exception('Instruction SSTxtVarB offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     a = trd.unpack('<I', off)
     var = []
     for i in range(cnt):
@@ -637,10 +734,10 @@ def InstSSTxtVarB(**kwargs):
       s, = trd.unpack('<{}s'.format(l))
       s = bytes(RoundTextFunc(bytearray(s))) # decryption
       res.append(s.decode(enc))
-    return '({},'+'{},'*cnt+','.join(['"{}"',]*cnt)+')'.format(hex(a), *map(lambda x: int(x,16), var), *res)
+    return ('({},'+'{},'*cnt+','.join(['"{}"',]*cnt)+')').format(hex(a), *map(lambda x: int(x,16), var), *res)
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a, p = int(p[0],16), p[1:]
     cnt = len(p)//2
     off = trd.pos
@@ -662,14 +759,39 @@ def InstNDNIII(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction NDNIII offset error')
+      raise Exception('Instruction NDNIII offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<III', off)
     return '({},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<III', *map(lambda x: int(x,16), p))
+    return cs.pack('<HII', 0, off, 0)
+
+'''
+Custom Structure from ScriptInstruction_0x6D
+struct
+{
+   int a,b,c; // unknown
+   int e[3]; // Assuming from test result, Tested
+}custom;
+'''
+# N D N / Custom
+def InstTaskVibr(**kwargs):
+  cs = kwargs['cs']
+  trd = kwargs['trd']
+  if 's' not in kwargs.keys():
+    _, off, _ = cs.unpack('<HII')
+    if off != trd.pos:
+      raise Exception('Instruction TaskVibr offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+    t = trd.unpack('<6I', off)
+    return '({},{},{},{},{},{})'.format(*map(hex,t))
+  else:
+    s = kwargs['s']
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
+    off = trd.pos
+    trd.pack('<6I', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
 
 '''
@@ -678,8 +800,7 @@ struct
 {
    int a,b,c; // unknown
    short d,e; // unknown
-   short f; // unknown
-   int e1,e2; // ASSUMING THIS funcs_412DD3
+   // Assuming from sub_4156D0 sub_412DB0
 }custom;
 '''
 # N D N / Custom
@@ -689,14 +810,17 @@ def InstAdvSEftFlt(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvSEftFlt offset error')
-    t = trd.unpack('<IIIHHHII', off)
-    return '({},{},{},{},{},{},({},{}))'.format(*map(hex,t))
+      raise Exception('Instruction AdvSEftFlt offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+    t = trd.unpack('<IIIHH', off)
+    idf = t[2]
+    return InstWrapFunc412DD3(idf, t, cs, trd)
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
-    trd.pack('<IIIHHHII', *map(lambda x: int(x,16), p))
+    trd.pack('<IIIHH', *map(lambda x: int(x,16), p[:5]))
+    idf = int(p[2], 16)
+    InstWrapFunc412DD3(idf, p[5:], cs, trd, s='')
     return cs.pack('<HII', 0, off, 0)
 
 # W D N / III
@@ -706,12 +830,12 @@ def InstWDNIII(**kwargs):
   if 's' not in kwargs.keys():
     a, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction WDNIII offset error')
+      raise Exception('Instruction WDNIII offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<III', off)
     return '{}, ({},{},{})'.format(hex(a), *map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     a = int(p[0],16)
     off = trd.pos
     trd.pack('<III', *map(lambda x: int(x,16), p[1:]))
@@ -724,12 +848,12 @@ def InstTskTrsMsk(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction TskTrsMsk offset error')
+      raise Exception('Instruction TskTrsMsk offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<5I', off)
     return '({},{},{},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<5I', *map(lambda x: int(x,16), p[1:]))
     return cs.pack('<HII', 0, off, 0)
@@ -750,12 +874,12 @@ def InstTskTrsMsk2(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction TskTrsMsk2 offset error')
+      raise Exception('Instruction TskTrsMsk2 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<IB8I', off)
     return '({},{},{},{},{},{},{},{},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<IB8I', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -781,12 +905,12 @@ def InstAdvObj0(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj0 offset error')
+      raise Exception('Instruction AdvObj0 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIBIHHHHBHB', off)
     return '({},{},{},{},{},{},{},{},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIBIHHHHBHB', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -806,12 +930,12 @@ def InstAdvObj1(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj1 offset error')
+      raise Exception('Instruction AdvObj1 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BI', off)
     return '({},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BI', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -832,12 +956,12 @@ def InstAdvObj211(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj211 offset error')
+      raise Exception('Instruction AdvObj211 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIB', off)
     return '({},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIB', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -858,12 +982,12 @@ def InstAdvObj3(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj3 offset error')
+      raise Exception('Instruction AdvObj3 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIBB', off)
     return '({},{},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIBB', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -883,12 +1007,12 @@ def InstAdvObj4T6(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj4T6 offset error')
+      raise Exception('Instruction AdvObj4T6 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIII', off)
     return '({},{},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIII', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -908,12 +1032,12 @@ def InstAdvObj715(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj715 offset error')
+      raise Exception('Instruction AdvObj715 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BII', off)
     return '({},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BII', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -934,12 +1058,12 @@ def InstAdvObj8(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj8 offset error')
+      raise Exception('Instruction AdvObj8 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIH', off)
     return '({},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIH', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -960,12 +1084,12 @@ def InstAdvObj9(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj9 offset error')
+      raise Exception('Instruction AdvObj9 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIB', off)
     return '({},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIB', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -988,12 +1112,12 @@ def InstAdvObj10(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj10 offset error')
+      raise Exception('Instruction AdvObj10 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIBIB', off)
     return '({},{},{},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIBIB', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -1004,7 +1128,9 @@ struct
 {
    byte a; // unknown
    int b,c,d; // unknown
-   // UNKNOWN <----------------------------------------------------------- PAY ATTENTION HERE
+   // UNKNOWN, assuming from test results
+   // int e1,e2,e3,e4;
+   // END
 }custom;
 '''
 # N D N / Custom
@@ -1014,14 +1140,15 @@ def InstAdvObj12(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj12 offset error')
+      raise Exception('Instruction AdvObj12 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIII', off)
-    return '({},{},{},{})'.format(*map(hex,t))
+    return InstWrapSub413350(t, cs, trd)
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
-    trd.pack('<BIII', *map(lambda x: int(x,16), p))
+    trd.pack('<BIII', *map(lambda x: int(x,16), p[:4]))
+    InstWrapSub413350(t, cs, trd, s='')
     return cs.pack('<HII', 0, off, 0)
   
 '''
@@ -1040,12 +1167,12 @@ def InstAdvObj1316(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj1316 offset error')
+      raise Exception('Instruction AdvObj1316 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIIB', off)
     return '({},{},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIIB', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
@@ -1056,7 +1183,7 @@ struct
 {
    int a,b,c,d; // unknown
    short e,f; // unknown
-   int e1,e2; // ASSUMING THIS funcs_412DD3
+   // Assuming from sub_412DB0
 }custom;
 '''
 # N D N / Custom
@@ -1066,14 +1193,17 @@ def InstAdvObj14(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj14 offset error')
-    t = trd.unpack('<IIIIHHII', off)
-    return '({},{},{},{},{},{},({},{}))'.format(*map(hex,t))
+      raise Exception('Instruction AdvObj14 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+    t = trd.unpack('<IIIIHH', off)
+    idf = t[3]
+    return InstWrapFunc412DD3(idf, t, cs, trd)
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
-    trd.pack('<IIIIHHII', *map(lambda x: int(x,16), p))
+    trd.pack('<IIIIHH', *map(lambda x: int(x,16), p[:6]))
+    idf = int(p[3], 16)
+    InstWrapFunc412DD3(idf, p[6:], cs, trd, s='')
     return cs.pack('<HII', 0, off, 0)
 
 '''
@@ -1082,7 +1212,9 @@ struct
 {
    byte a; // unknown
    int b,c; // unknown
-   // UNKNOWN <----------------------------------------------------------- PAY ATTENTION HERE
+   // UNKNOWN, assuming from test results
+   int e[9]; // Tested
+   // END
 }custom;
 '''
 # N D N / Custom
@@ -1092,22 +1224,22 @@ def InstAdvObj17(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvObj17 offset error')
-    t = trd.unpack('<BII', off)
-    return '({},{},{})'.format(*map(hex,t))
+      raise Exception('Instruction AdvObj17 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+    t = trd.unpack('<BII9I', off)
+    return ('({},{},{},('+','.join(['{}',]*9)+'))').format(*map(hex,t))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
-    trd.pack('<BII', *map(lambda x: int(x,16), p))
+    trd.pack('<BII9I', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
 
 '''
-Custom Structure from ScriptInstruction_0x8C funcs_415283
+Custom Structure from ScriptInstruction_0x8C
 struct
 {
    int a,b,c; // unknown
-   // UNKNOWN <----------------------------------------------------------- PAY ATTENTION HERE
+   // Assuming from sub_4151D0
 }custom;
 '''
 # N D N / Custom
@@ -1117,14 +1249,44 @@ def InstAdvScrEnv(**kwargs):
   if 's' not in kwargs.keys():
     _, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction AdvScrEnv offset error')
+      raise Exception('Instruction AdvScrEnv offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<III', off)
-    return '({},{},{})'.format(*map(hex,t))
+    idf = t[2]
+    return InstWrapFunc415283(idf, t, cs, trd)
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
-    trd.pack('<III', *map(lambda x: int(x,16), p))
+    trd.pack('<III', *map(lambda x: int(x,16), p[:3]))
+    idf = int(p[2], 16)
+    InstWrapFunc415283(idf, p[3:], cs, trd, s='')
+    return cs.pack('<HII', 0, off, 0)
+
+'''
+Custom Structure from ScriptInstruction_0x8D sub_4154B0
+struct
+{
+   int a; // unknown
+   // UNKNOWN, assuming from test results
+   // byte b; // Tested
+   // END
+}custom;
+'''
+# N D N / Custom
+def InstGCLspU(**kwargs):
+  cs = kwargs['cs']
+  trd = kwargs['trd']
+  if 's' not in kwargs.keys():
+    _, off, _ = cs.unpack('<HII')
+    if off != trd.pos:
+      raise Exception('Instruction GCLspU offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+    t = trd.unpack('<IB', off)
+    return '({},{})'.format(*map(hex,t))
+  else:
+    s = kwargs['s']
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
+    off = trd.pos
+    trd.pack('<IB', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
 
 '''
@@ -1146,7 +1308,7 @@ def InstEffBustUp(**kwargs):
   if 's' not in kwargs.keys():
     cnt, off, _ = cs.unpack('<HII')
     if off != trd.pos:
-      raise Exception('Instruction EffBustUp offset error')
+      raise Exception('Instruction EffBustUp offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     trd.unpack('', off)
     res = []
     for i in range(cnt):
@@ -1156,7 +1318,7 @@ def InstEffBustUp(**kwargs):
     return '({})'.format(','.join(map(lambda x: '({},{})'.format(*map(lambda y: ','.join(map(hex,y)), x)), res)))
   else:
     s = kwargs['s']
-    p = [k.strip().strip('()').strip() for k in s.split(',')]
+    p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     cnt = len(p)//38
     off = trd.pos
     for i in range(cnt):
@@ -1169,7 +1331,7 @@ def InstEffBustUp(**kwargs):
 def InstNBNN(**kwargs):
   cs = kwargs['cs']
   if 's' not in kwargs.keys():
-    _, a, _, _ = cs.unpack('<HB3BI')
+    _, a, _, _, _, _ = cs.unpack('<HB3BI')
     return '{}'.format(hex(a))
   else:
     s = kwargs['s']
@@ -1287,7 +1449,7 @@ inst = {
   0x6A: ('0x6A_U_SndObjC', InstNone),
   0x6B: ('0x6B_U_SwScenario', InstNDN),
   0x6C: ('0x6C_U_SAGlobVar', InstNone),
-  0x6D: ('0x6D_TaskVibrate', InstNDNIII),
+  0x6D: ('0x6D_TaskVibrate', InstTaskVibr),
   0x6E: ('0x6E_TaskFlash', InstNDN),
   0x6F: ('0x6F_EftSurprise', InstNDNII),
   0x70: ('0x70_AdvSEftFlt', InstAdvSEftFlt),
@@ -1319,7 +1481,7 @@ inst = {
   0x8A: ('0x8A_U_AdvObj1316', InstAdvObj1316),
   0x8B: ('0x8B_U_AdvObj17', InstAdvObj17),
   0x8C: ('0x8C_U_AdvScrEnv', InstAdvScrEnv),
-  0x8D: ('0x8D_U_GCLspU', InstNDNII),
+  0x8D: ('0x8D_U_GCLspU', InstGCLspU),
   0x8E: ('0x8E_U_EffBustUp', InstEffBustUp),
   0x8F: ('0x8F_U_CAdvObj', InstNone),
   0x90: ('0x90_U_MAdvObj', InstNDNIII),
@@ -1338,43 +1500,49 @@ inst = {
   0x9D: ('0x9D_U_SetGlobVar', InstNDN),
 }
 
-def UnpackScd(filepath, outpath, enc):
+def UnpackScd(filepath, outpath):
   cs = CStruct()
   cs.from_file(filepath)
-  cs.bitwise(RoundNameFunc, 0x20, 0x124)
+  cs.bitwise(RoundNameFunc, 0x20, 0x124-1)
   sign = cs.unpack('<4I')
   idt = cs.unpack('<4I')
-  name = cs.unpack('<260s').strip().decode(enc)
-  first_cnt, second_cnt, third_cnt = cs.unpack('<III')
+  name, = cs.unpack('<260s')
+  name = name.strip(b'\x00').decode(enc).strip()
+  first_cnt, second_cnt, third_cnt = cs.unpack('<3I')
   first_block = []
   for i in range(first_cnt):
     first_block.append(cs.unpack('<3I'))
   trd = CStruct()
   eb2 = cs.pos+second_cnt; eb3 = eb2+third_cnt
   trd.set(cs.get()[eb2 : eb3])
-  s = ''
-  while eb2<eb3:
-    cmd = cs.unpack('<H')
-    t = inst[cmd][0] + inst[cmd][1](cs=cs, trd=trd)
-    s = s + t + '\n'
+  s = []
+  while cs.pos<eb2:
+    cmd, = cs.unpack('<H')
+    #print('cmd {} ipos {} tbpos {}'.format(inst[cmd][0],hex(cs.pos),hex(trd.pos)))
+    t = inst[cmd][0] + ': ' + inst[cmd][1](cs=cs, trd=trd)
+    s.append(t + '\n')
   with open(outpath, 'w', encoding=enc) as f:
     f.write('Idt: {}, {}, {}, {}\n'.format(*map(hex, idt)))
     f.write('Name: "{}"\n'.format(name))
     for i in range(first_cnt):
-      f.write('FstBlk {}, {}, {}, {}\n'.format(i, *map(hex, first_block[i])))
-    f.write(s)
-    
-def RepackScd(filepath, outpath, enc):
+      f.write('FstBlk: Idx {}, {}, {}, {}\n'.format(hex(i), *map(hex, first_block[i])))
+    for i in s:
+      f.write(i)
+  filename = filepath.split('\\')[-1].split('/')[-1].strip()
+  print('HpackScd {}: {} commands processed'.format(filename, len(s)))
+  
+def RepackScd(filepath, outpath):
   pass
 
 if __name__=='__main__':
   if len(sys.argv) != 5:
     print("Usage: HpackScd.py unpack/pack <in_file> <out_file> <encoding>")
     sys.exit(1)
+  enc = sys.argv[4]
   if sys.argv[1] == "unpack":
-    UnpackScd(sys.argv[2], sys.argv[3], sys.argv[4])
+    UnpackScd(sys.argv[2], sys.argv[3])
   elif sys.argv[1] == "pack":
-    RepackScd(sys.argv[2], sys.argv[3], sys.argv[4])
+    RepackScd(sys.argv[2], sys.argv[3])
   else:
     print("HpackScd.py: Nothing to do")
     sys.exit(1)

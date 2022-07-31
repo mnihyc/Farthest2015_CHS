@@ -114,6 +114,7 @@ def InstWrapSub413350(a, cs, trd, **kwargs):
       e = trd.unpack(f)
       return ('({},{},{},{},('+','.join(['{}',]*n)+'))').format(*map(hex,a), *map(hex,e))
   else:
+    idf = int(kwargs['adf'][3], 16)
     if idfmap.get(idf, ('', 0))[1] == 0:
       pass
     else:
@@ -855,7 +856,7 @@ def InstTskTrsMsk(**kwargs):
     s = kwargs['s']
     p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
-    trd.pack('<5I', *map(lambda x: int(x,16), p[1:]))
+    trd.pack('<5I', *map(lambda x: int(x,16), p))
     return cs.pack('<HII', 0, off, 0)
 
 '''
@@ -907,7 +908,7 @@ def InstAdvObj0(**kwargs):
     if off != trd.pos:
       raise Exception('Instruction AdvObj0 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
     t = trd.unpack('<BIBIHHHHBHB', off)
-    return '({},{},{},{},{},{},{},{},{},{})'.format(*map(hex,t))
+    return '({},{},{},{},{},{},{},{},{},{},{})'.format(*map(hex,t))
   else:
     s = kwargs['s']
     p = [k.strip().strip('()[]').strip() for k in s.split(',')]
@@ -1148,7 +1149,8 @@ def InstAdvObj12(**kwargs):
     p = [k.strip().strip('()[]').strip() for k in s.split(',')]
     off = trd.pos
     trd.pack('<BIII', *map(lambda x: int(x,16), p[:4]))
-    InstWrapSub413350(t, cs, trd, s='')
+    t = p[4:]
+    InstWrapSub413350(t, cs, trd, s='', adf=p[:4])
     return cs.pack('<HII', 0, off, 0)
   
 '''
@@ -1337,7 +1339,7 @@ def InstNBNN(**kwargs):
     s = kwargs['s']
     p = [k.strip() for k in s.split(',')]
     a = int(p[0],16)
-    return cs.pack('<HB3BI', 0, a, [0,]*3, 0)
+    return cs.pack('<HB3BI', 0, a, *[0,]*3, 0)
 
 inst = {
   0x00: ('0x00_Pass', InstNone),
@@ -1493,7 +1495,7 @@ inst = {
   0x96: ('0x96_U_Menu', InstNone),
   0x97: ('0x97_PlayMovie', InstNWWN),
   0x98: False,
-  0x99: ('0x97_U_SGlobByte', InstNBNN),
+  0x99: ('0x99_U_SGlobByte', InstNBNN),
   0x9A: ('0x9A_U_ScrTPRecv', InstNone),
   0x9B: ('0x9B_U_SelGirlVar', InstWWNN),
   0x9C: ('0x9C_U_SetRndGVar', InstNone),
@@ -1532,7 +1534,38 @@ def UnpackScd(filepath, outpath):
   print('HpackScd {}: {} commands processed'.format(filename, len(s)))
   
 def RepackScd(filepath, outpath):
-  pass
+  with open(filepath, 'r', encoding=enc) as f:
+    lines = [line.strip() for line in f.readlines()]
+  idt = [i.strip() for i in lines[0][lines[0].find(':')+1:].split(',')]
+  name = lines[1][lines[1].find('"')+1 : lines[1].rfind('"')]
+  first_block = []
+  for i in range(2, len(lines)):
+    if lines[i].startswith('FstBlk'):
+      first_block.append([k.strip() for k in lines[i][lines[i].find('Idx')+3:].split(',')[1:]])
+    else:
+      lines = lines[i:]
+      break  
+  cs = CStruct()
+  cs.pack('<4I', *[0,]*4)
+  cs.pack('<4I', *map(lambda x: int(x,16), idt))
+  name = name.encode(enc)
+  cs.pack('<260s', name+b'\x00'*(260-len(name)))
+  cs.bitwise(RoundNameFunc, 0x20, 0x124-1)
+  cs.pack('<3I', len(first_block), len(lines)*3*4, 0) # placeholder
+  ttpos = cs.pos
+  for i in first_block:
+    cs.pack('<3I', *map(lambda x: int(x,16), i))
+  trd = CStruct()
+  for i in lines:
+    cmd = int(i.split('_')[0].strip(),16)
+    cs.pack('<H', cmd)
+    inst[cmd][1](cs=cs, trd=trd, s=i[i.find(':')+1:].strip())
+  cs.append(trd.get())
+  cs.pack('<4I', *[0,]*4)
+  cs.pack('<I', trd.pos, pos=ttpos-4)
+  cs.to_file(outpath)
+  filename = filepath.split('\\')[-1].split('/')[-1].strip()
+  print('HpackScd {}: {} commands processed'.format(filename, len(lines)))
 
 if __name__=='__main__':
   if len(sys.argv) != 5:

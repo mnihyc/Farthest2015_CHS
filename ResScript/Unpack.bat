@@ -1,12 +1,12 @@
 @echo off
-ECHO Usage: Unpack.bat (src dir) [shift-jis] (dst dir) [utf-8]
+ECHO Usage: Unpack.bat (src dir) [cp932] (dst dir) [utf-8]
 SET src=..\Static\org
 IF NOT "%~1" == "" (SET "src=%~1")
 IF NOT EXIST "%src%\" (ECHO Directory not found "%src%" & GOTO :error)
 SET dst=..\Static\dec
 IF NOT "%~3" == "" (SET "dst=%~3")
 IF NOT EXIST "%dst%\" (ECHO Directory not found "%dst%" & GOTO :error)
-SET fenc=shift-jis
+SET fenc=cp932
 IF NOT "%~2" == "" (SET "fenc=%~2")
 SET tenc=utf-8
 IF NOT "%~4" == "" (SET "tenc=%~4")

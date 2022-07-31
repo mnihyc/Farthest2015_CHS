@@ -10,6 +10,10 @@ class CStruct(object):
     self.pos = 0
   def get(self):
     return self.str
+  def append(self, str):
+    if type(str) is not bytes:
+      raise Exception('type mismatch')
+    self.str = self.str + str
   def __check(self, pos):
     if pos >= len(self.str):
       raise Exception('position overflow')
@@ -20,11 +24,11 @@ class CStruct(object):
     self.pos = pos + sz
     return struct.unpack_from(format, self.str, pos)
   def pack(self, format='', *args, pos=-1):
-    self.pos = 0
     pos = len(self.str) if pos == -1 else pos
     ts = struct.pack(format, *args)
     self.str = (self.str[:pos] if pos>=0 else b'') + ts \
       + (self.str[pos+len(ts):] if pos+len(ts)<len(self.str) else b'')
+    self.pos = len(self.str)
     return ts
   def bitwise(self, func, start=0, end=-1):
     end = len(self.str) if end == -1 else end + 1

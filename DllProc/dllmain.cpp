@@ -86,7 +86,7 @@ BOOL WINAPI mySHGetSpecialFolderPathA(HWND hwnd, LPSTR pszPath, int csidl, BOOL 
 	return SHGSPA(hwnd, pszPath, csidl, fCreate);
 }
 
-// recognize unicode
+// recognize chinese
 HOOKIAT hkCreateFontA;
 typedef HFONT (WINAPI* tpCreateFontA)(int, int, int, int, int, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, LPCSTR);
 HFONT WINAPI myCreateFontA(
@@ -107,12 +107,12 @@ HFONT WINAPI myCreateFontA(
 )
 {
 	tpCreateFontA CFA = static_cast<tpCreateFontA>(hkCreateFontA.get());
-	iCharSet = 0x86;
+	//iCharSet = 0x86;
 	HFONT ret = CFA(cHeight, cWidth, cEscapement, cOrientation, cWeight, bItalic, bUnderline, bStrikeOut, iCharSet, iOutPrecision, iClipPrecision, iQuality, iPitchAndFamily, pszFaceName);
 	return ret;
 }
 
-// recognize unicode charset
+// recognize chinese, or boundary check
 HOOKIAT hkIsDBCSLeadByte;
 typedef BOOL (WINAPI* tpIsDBCSLeadByte)(BYTE);
 BOOL WINAPI myIsDBCSLeadByte(BYTE TestChar)
@@ -121,13 +121,41 @@ BOOL WINAPI myIsDBCSLeadByte(BYTE TestChar)
 	return IsDBCSLeadByteEx(936, TestChar);
 }
 
-// recognize unicode charset
+// recognize chinese, or bounary check
 HOOKIAT hkCharNextA;
 typedef LPSTR(WINAPI* tpCharNextA)(LPCSTR);
 LPSTR WINAPI myCharNextA(LPCSTR lpsz)
 {
 	tpCharNextA CNA = static_cast<tpCharNextA>(hkCharNextA.get());
 	return CharNextExA(936, lpsz, 0);
+}
+
+// handle all characters with different encodings
+HOOKIAT hkGetGlyphOutlineA;
+typedef DWORD (WINAPI* tpGetGlyphOutlineA)(HDC, UINT, UINT, LPGLYPHMETRICS, DWORD, LPVOID, const MAT2*);
+DWORD WINAPI myGetGlyphOutlineA(
+	HDC     hdc,
+	UINT    uChar,
+	UINT    uFormat,
+	LPGLYPHMETRICS lpgm,
+	DWORD   cbBuffer,
+	LPVOID  lpvBuffer,
+	const MAT2 *lpmat2
+)
+{
+	tpGetGlyphOutlineA GOA = static_cast<tpGetGlyphOutlineA>(hkGetGlyphOutlineA.get());
+	//return GOA(hdc, uChar, uFormat, lpgm, cbBuffer, lpvBuffer, lpmat2);
+	char cc[3] = { 0 };
+	if (uChar <= 0xFF)
+		cc[0] = uChar & 0xFF;
+	else if (uChar <= 0xFFFF)
+		cc[0] = (uChar & 0xFF00) >> 8,
+		cc[1] = uChar & 0xFF;
+	else
+		dbg.FatalPopup(L"Unexpected character in GetGlyphOutlineA");
+	wstring ws = MBTWS(cc, 932);
+	wchar_t wc = (UINT)ws.c_str()[0];
+	return GetGlyphOutlineW(hdc, wc, uFormat, lpgm, cbBuffer, lpvBuffer, lpmat2);
 }
 
 // debug output function
@@ -230,8 +258,9 @@ __declspec(naked) WORD __cdecl gdRoundKey()
 wstring MBTWS(const char* str, int page)
 {
 	int len = MultiByteToWideChar(page, 0, str, strlen(str) + 1, NULL, 0);
-	wchar_t* wstr = new wchar_t[len + 1];
-	MultiByteToWideChar(page, 0, str, strlen(str) + 1, wstr, len);
+	wchar_t* wstr = new wchar_t[len];
+	if (MultiByteToWideChar(page, 0, str, strlen(str) + 1, wstr, len) == 0)
+		dbg.FatalPopup(L"MBTWS() failed");
 #pragma warning(push)
 #pragma warning(disable: 6001)
 	wstring s{wstr};
@@ -243,8 +272,9 @@ wstring MBTWS(const char* str, int page)
 char* WSTMB(const wstring& str, int page)
 {
 	int len = WideCharToMultiByte(page, 0, str.data(), str.size() + 1, NULL, 0, NULL, NULL);
-	char* mstr = new char[len + 1];
-	WideCharToMultiByte(page, 0, str.data(), str.size() + 1, mstr, len, NULL, NULL);
+	char* mstr = new char[len];
+	if (WideCharToMultiByte(page, 0, str.data(), str.size() + 1, mstr, len, NULL, NULL) == 0)
+		dbg.FatalPopup(L"WSTMB() failed");
 	return mstr;
 }
 
@@ -267,6 +297,11 @@ void MainProc()
 	suc = HOOK::patch(base + 0x87E52, (BYTE)0xEB, 0x1);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to patch hex:487E52 JMP");
+	// patch 0xxx.cd signature validation
+	const BYTE NOPs[] = { "\x90\x90" };
+	suc = HOOK::patch(base + 0xBA268, NOPs, 0x2);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to patch hex:BA268 NOP");
 	
 	// patch WINAPI
 	suc = hkCreateFileA.hook(myCreateFileA, L"CreateFileA");
@@ -287,6 +322,9 @@ void MainProc()
 	suc = hkCharNextA.hook(myCharNextA, L"CharNextA");
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook CharNextA");
+	suc = hkGetGlyphOutlineA.hook(myGetGlyphOutlineA, L"GetGlyphOutlineA");
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook GetGlyphOutlineA");
 	
 	suc = hksub_4AA300.hook(sub_4AA300, (LPVOID)(base + 0xAA300), 6);
 	if (!suc)

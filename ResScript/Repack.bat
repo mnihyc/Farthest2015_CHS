@@ -8,7 +8,7 @@ IF NOT "%~3" == "" (SET "dst=%~3")
 IF NOT EXIST "%dst%\" (ECHO Directory not found "%dst%" & GOTO :error)
 SET fenc=utf-8
 IF NOT "%~2" == "" (SET "fenc=%~2")
-SET tenc=shift-jis
+SET tenc=cp932
 IF NOT "%~4" == "" (SET "tenc=%~4")
 ECHO Will unpack %src%\*.cd.txt (%fenc%) to %dst%\*.cd (%tenc%)
 PAUSE

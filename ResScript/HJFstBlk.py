@@ -32,6 +32,7 @@ def JTableFromFB(dp):
         break
   for i in range(len(fcs)):
     with open(os.path.join(dp, fcs[i][0]), 'w', encoding=enc) as f:
+      f.write('\n'.join(fcs[i][1][:2]) + '\n')
       for k in range(2, len(fcs[i][1])):
         if not fcs[i][1][k].startswith('FstBlkTable:'):
           break

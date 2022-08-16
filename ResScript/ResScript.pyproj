@@ -22,12 +22,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="EncConv.py" />
+    <Compile Include="HJFstBlk.py" />
     <Compile Include="Hpack0cd.py" />
     <Compile Include="CStruct.py" />
     <Compile Include="Hpack1cd.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="HpackScd.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="HTextExtract.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

@@ -16,6 +16,7 @@ IF EXIST "%dst%\tmp\" (RMDIR /S /Q "%dst%\tmp\" || GOTO :error)
 MKDIR "%dst%\tmp\" || GOTO :error
 XCOPY /Q "%src%\" "%dst%\tmp\"
 
+python HTextExtract.py pack "%dst%\tmp" "%src%\ExText.txt" %fenc% || GOTO :error
 python HJFstBlk.py pack "%dst%\tmp" %fenc% || GOTO :error
 python EncConv.py %fenc% "%src%\0.cd.txt" %tenc% "%dst%\0.cd" || GOTO :error
 python Hpack0cd.py pack "%dst%\0.cd" "%dst%\0.cd" %tenc% || GOTO :error

@@ -21,6 +21,7 @@ python HpackScd.py unpack "%src%\%%~nxi" "%dst%\%%~nxi.txt" %fenc% || GOTO :erro
 python EncConv.py %fenc% "%dst%\%%~nxi.txt" %tenc% "%dst%\%%~nxi.txt" || GOTO :error
 )
 python HJFstBlk.py unpack "%dst%" %tenc% || GOTO :error
+python HTextExtract.py unpack "%dst%" "%dst%\ExText.txt" %tenc% || GOTO :error
 
 PAUSE
 EXIT /b 0

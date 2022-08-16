@@ -27,7 +27,7 @@ def JTableFromFB(dp):
     for k in range(2, len(fcs[i][1])):
       if fcs[i][1][k].startswith('FstBlk:'):
         ints = list(map(lambda x: int(x.strip(), 16), fcs[i][1][k][fcs[i][1][k].find('Idx')+3 : ].strip().split(',')))
-        fcs[i][1][k] = 'FstBlkTable: Idx {0}, {1:04d}.cd, {2}, JTable_{3}'.format(hex(ints[0]), ints[1], hex(ints[2]), tbl[ints[1]].index(ints[3]//12))
+        fcs[i][1][k] = 'FstBlkTable: Idx {}, {:04d}.cd, {}, JTable_{}'.format(hex(ints[0]), ints[1], hex(ints[2]), tbl[ints[1]].index(ints[3]//12))
       else:
         break
   for i in range(len(fcs)):

@@ -130,71 +130,6 @@ LPSTR WINAPI myCharNextA(LPCSTR lpsz)
 	return CharNextExA(936, lpsz, 0);
 }
 
-// handle all characters with different encodings
-HOOKIAT hkGetGlyphOutlineA;
-typedef DWORD (WINAPI* tpGetGlyphOutlineA)(HDC, UINT, UINT, LPGLYPHMETRICS, DWORD, LPVOID, const MAT2*);
-DWORD WINAPI myGetGlyphOutlineA(
-	HDC     hdc,
-	UINT    uChar,
-	UINT    uFormat,
-	LPGLYPHMETRICS lpgm,
-	DWORD   cbBuffer,
-	LPVOID  lpvBuffer,
-	const MAT2 *lpmat2
-)
-{
-	tpGetGlyphOutlineA GOA = static_cast<tpGetGlyphOutlineA>(hkGetGlyphOutlineA.get());
-	//return GOA(hdc, uChar, uFormat, lpgm, cbBuffer, lpvBuffer, lpmat2);
-	char cc[3] = { 0 };
-	if (uChar <= 0xFF)
-		cc[0] = uChar & 0xFF;
-	else if (uChar <= 0xFFFF)
-		cc[0] = (uChar & 0xFF00) >> 8,
-		cc[1] = uChar & 0xFF;
-	else
-		dbg.FatalPopup(L"Unexpected character in GetGlyphOutlineA");
-	wstring ws = MBTWS(cc, 932);
-	wchar_t wc = (UINT)ws.c_str()[0];
-	return GetGlyphOutlineW(hdc, wc, uFormat, lpgm, cbBuffer, lpvBuffer, lpmat2);
-}
-
-// debug output function
-HOOKJMP hksub_4AA300;
-__declspec(naked) void __cdecl orgsub_4AA300(int* a1, int a2, const char* a3, va_list vl)
-{
-	__asm
-	{
-		push vl
-		push a3
-		push a2
-		mov esi, a1
-		lea ecx, hksub_4AA300
-		call HOOKJMP::get
-		call eax
-		add esp, 0xC
-		ret
-	}
-}
-void __stdcall mysub_4AA300(int *a1, int a2, const char* a3, va_list vl)
-{
-	return orgsub_4AA300(a1, a2, a3, vl);
-}
-__declspec(naked) void __cdecl sub_4AA300(int a2, const char* a3, va_list vl)
-{
-	__asm
-	{
-		push ebp
-		mov ebp, esp
-		push vl
-		push a3
-		push a2
-		push esi
-		call mysub_4AA300
-		leave
-		ret
-	}
-}
-
 // read text function function
 HOOKJMP hksub_475E90;
 __declspec(naked) char __cdecl orgsub_475E90(DWORD* a1, DWORD* a2, int a3)
@@ -322,13 +257,6 @@ void MainProc()
 	suc = hkCharNextA.hook(myCharNextA, L"CharNextA");
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook CharNextA");
-	suc = hkGetGlyphOutlineA.hook(myGetGlyphOutlineA, L"GetGlyphOutlineA");
-	if (!suc)
-		dbg.FatalPopup(L"Unable to hook GetGlyphOutlineA");
-	
-	suc = hksub_4AA300.hook(sub_4AA300, (LPVOID)(base + 0xAA300), 6);
-	if (!suc)
-		dbg.FatalPopup(L"Unable to hook sub_4AA300");
 	
 	suc = hksub_475E90.hook(sub_475E90, (LPVOID)(base + 0x75E90), 6);
 	if (!suc)

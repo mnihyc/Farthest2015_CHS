@@ -296,7 +296,7 @@ def InstLoadSimpStr(**kwargs):
 Custom Structure from sub_475E90 sub_4A2F50
 struct
 {
-   int a; // unknown
+   int a; // voice resource idx
    int off; // to below -->
    int idx; // text index (asc)
    int cnt; // number of lines

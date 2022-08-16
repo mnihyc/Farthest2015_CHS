@@ -17,7 +17,7 @@ def TextExp(dp, outpath):
       text = [line for line in fc if line.startswith('0x40_') or line.startswith('0x41_')]
       for line in text:
         p = [k.strip().strip('()[]').strip() for k in line[line.find(':')+1 :].split(',')]
-        f.write('Text {0:04d}.cd, {1}, ({2}, {3}, {4})\n'.format(int(fn[:4]), p[1], *p[-3:]))
+        f.write('Text {:04d}.cd, {}, ({}, {}, {})\n'.format(int(fn[:4]), p[1], *p[-3:]))
         assert(int(p[0], 16) in [0x12, 0x13])
         chna = int(p[0], 16) == 0x13
         p = p[2 : -3]
@@ -65,7 +65,7 @@ def TextImp(dp, outpath):
           continue
         fcs[i][1][k] = fcs[i][1][k][: fcs[i][1][k].find(':')+1] + ' {}, ({},'+'{},'*len(txts[i][idx])+'{},{},{})'.format(
           hex(txts[i][idx][0]), p[1], *txts[i][idx][1], *txts[i][idx][2])
-  print('HTextExtract: {} files, {} lines processed'.format(len(fcs), len(lines)))
+  print('HTextExtract: {} files, {} lines processed'.format(len(fcs), len(blks)))
 
 if __name__=='__main__':
   if len(sys.argv) != 5:

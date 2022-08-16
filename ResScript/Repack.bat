@@ -12,18 +12,24 @@ SET tenc=cp932
 IF NOT "%~4" == "" (SET "tenc=%~4")
 ECHO Will unpack %src%\*.cd.txt (%fenc%) to %dst%\*.cd (%tenc%)
 PAUSE
+IF EXIST "%dst%\tmp\" (RMDIR /S /Q "%dst%\tmp\" || GOTO :error)
+MKDIR "%dst%\tmp\" || GOTO :error
+XCOPY /Q "%src%\" "%dst%\tmp\"
 
+python HJFstBlk.py pack "%dst%\tmp" %fenc% || GOTO :error
 python EncConv.py %fenc% "%src%\0.cd.txt" %tenc% "%dst%\0.cd" || GOTO :error
 python Hpack0cd.py pack "%dst%\0.cd" "%dst%\0.cd" %tenc% || GOTO :error
 python Hpack1cd.py pack "%src%\1.cd.txt" "%dst%\1.cd" || GOTO :error
-FOR %%i IN ("%src%\00??.cd.txt", "%src%\01??.cd.txt") DO (
-python EncConv.py %fenc% "%src%\%%~ni.txt" %tenc% "%dst%\%%~ni" || GOTO :error
+FOR %%i IN ("%dst%\tmp\00??.cd.txt", "%dst%\tmp\01??.cd.txt") DO (
+python EncConv.py %fenc% "%dst%\tmp\%%~ni.txt" %tenc% "%dst%\%%~ni" || GOTO :error
 python HpackScd.py pack "%dst%\%%~ni" "%dst%\%%~ni" %tenc% || GOTO :error
 )
 
+RMDIR /S /Q "%dst%\tmp\" || GOTO :error
 PAUSE
 EXIT /b 0
 :error
 ECHO Error encountered, exiting
 PAUSE
+RMDIR /S /Q "%dst%\tmp\"
 EXIT /b %ERRORLEVEL%

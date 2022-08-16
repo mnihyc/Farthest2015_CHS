@@ -1540,7 +1540,7 @@ def RepackScd(filepath, outpath):
   name = lines[1][lines[1].find('"')+1 : lines[1].rfind('"')]
   first_block = []
   for i in range(2, len(lines)):
-    if lines[i].startswith('FstBlk'):
+    if lines[i].startswith('FstBlk:'):
       first_block.append([k.strip() for k in lines[i][lines[i].find('Idx')+3:].split(',')[1:]])
     else:
       lines = lines[i:]

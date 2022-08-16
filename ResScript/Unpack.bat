@@ -20,6 +20,7 @@ FOR %%i IN ("%src%\00??.cd", "%src%\01??.cd") DO (
 python HpackScd.py unpack "%src%\%%~nxi" "%dst%\%%~nxi.txt" %fenc% || GOTO :error
 python EncConv.py %fenc% "%dst%\%%~nxi.txt" %tenc% "%dst%\%%~nxi.txt" || GOTO :error
 )
+python HJFstBlk.py unpack "%dst%" %tenc% || GOTO :error
 
 PAUSE
 EXIT /b 0

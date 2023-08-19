@@ -167,6 +167,88 @@ __declspec(naked) char __cdecl sub_475E90(int a3)
 	}
 }
 
+
+void LogCurInst()
+{
+	DWORD base = (DWORD) GetModuleHandleA(NULL);
+	DWORD GCScenario = base + 0x1194C0;
+	DWORD data = *(DWORD*)(GCScenario + 0x24);
+	DWORD pos = *(DWORD*)(GCScenario + 0x28);
+	int num = *(int*)(data + 0x4);
+	DWORD secondBlock = *(DWORD*)(data + 0x28);
+	wchar_t tmp[100];
+	wsprintf(tmp, L"num: %04d, offset: 0x%x", num, (pos - secondBlock) / 12);
+	dbg.Log(tmp);
+}
+
+
+// ReadFuncFromGCScenario
+HOOKJMP hksub_472AB0;
+__declspec(naked) DWORD* __cdecl orgsub_472AB0(DWORD* a1)
+{
+	__asm
+	{
+		lea ecx, hksub_472AB0
+		call HOOKJMP::get
+		mov ecx, eax
+		mov eax, a1
+		call ecx
+		ret
+	}
+}
+DWORD* __stdcall mysub_472AB0(DWORD* a1)
+{
+	DWORD* ret = orgsub_472AB0(a1);
+	LogCurInst();
+	return ret;
+}
+__declspec(naked) DWORD* __cdecl sub_472AB0()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push eax
+		call mysub_472AB0
+		leave
+		ret
+	}
+}
+
+// MoveNextScenarioInstruction
+HOOKJMP hksub_4BAA10;
+__declspec(naked) char __cdecl orgsub_4BAA10(DWORD* a1)
+{
+	__asm
+	{
+		lea ecx, hksub_4BAA10
+		call HOOKJMP::get
+		mov ecx, eax
+		mov eax, a1
+		call ecx
+		ret
+	}
+}
+char __stdcall mysub_4BAA10(DWORD* a1)
+{
+	char ret = orgsub_4BAA10(a1);
+	LogCurInst();
+	return ret;
+}
+__declspec(naked) char __cdecl sub_4BAA10()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push eax
+		call mysub_4BAA10
+		leave
+		ret
+	}
+}
+
+
 // patch file validation function
 HOOKJMP hkRoundKey;
 WORD __stdcall myRoundKey(int size, BYTE *b, WORD *key)
@@ -261,6 +343,13 @@ void MainProc()
 	suc = hksub_475E90.hook(sub_475E90, (LPVOID)(base + 0x75E90), 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook sub_475E90");
+
+	suc = hksub_472AB0.hook(sub_472AB0, (LPVOID)(base + 0x72AB0), 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_472AB0");
+	suc = hksub_4BAA10.hook(sub_4BAA10, (LPVOID)(base + 0xBAA10), 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_4BAA10");
 	
 	suc = hkRoundKey.hook(gdRoundKey, (LPVOID)(base + 0xA7BE0), 8);
 	if (!suc)

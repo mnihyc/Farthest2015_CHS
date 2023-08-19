@@ -21,6 +21,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="HCommon.py" />
     <Compile Include="EncConv.py" />
     <Compile Include="HJFstBlk.py" />
     <Compile Include="Hpack0cd.py" />
@@ -32,6 +33,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="HTextExtract.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Translate.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

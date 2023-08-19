@@ -6,7 +6,7 @@
 #include <string>
 
 // global debug
-DEBUG dbg{ L"DllProc", L"D:/Projects/Farthest2015_CHS/Release/d_dllproc.txt", false, true };
+DEBUG dbg{ L"DllProc", L"P:/Projects/Farthest2015_CHS/Release/d_dllproc.txt", false, true };
 
 // for easier coding
 using std::wstring;
@@ -215,7 +215,7 @@ char* WSTMB(const wstring& str, int page)
 
 void MainProc()
 {
-	DWORD base = (DWORD)GetModuleHandleA(NULL);
+	DWORD base = (DWORD) GetModuleHandleA(NULL);
 	bool suc = true;
 	
 	// patch font validation

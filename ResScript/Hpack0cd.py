@@ -24,7 +24,10 @@ struct
 		{
 			int len; // size of this string
 			char str[len]; // string with trailing zero
-			int abcd[4]; // unknown
+			int off; // offset in second_block
+			int idx; // FstBlkTable Idx
+			int id; // id in first_block
+			int jid; // FstBlkTable JTable_id
 			short sign; // for validation
 		}string[num];
 	}block[cnt];
@@ -55,8 +58,8 @@ def Unpack0cd(infile: str, outfile: str, enc: str):
 	with open(outfile, 'w', encoding=enc) as f:
 		for i, r in enumerate(res):
 			for a, b, c, d, s in r:
-				f.write('Blk {}, {:10}, {:10}, {:10}, {:10}, {:5}"{}"\n'.format(
-									i, hex(a), hex(b), hex(c), hex(d), '', s.decode(enc)))
+				f.write('Blk {:04d} {:5}, {:10}, {:10}, {:10}, {:10}, {:5}"{}"\n'.format(
+									i, '', hex(a), hex(b), hex(c), hex(d), '', s.decode(enc)))
 	print('Hpack0cd: {}/{} blocks processed'.format(cnt, sum([len(i) for i in res])))
 
 def Repack0cd(infile: str, outfile: str, enc: str):

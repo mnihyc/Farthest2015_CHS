@@ -18,9 +18,9 @@ XCOPY /Q "%src%\" "%dst%\tmp\"
 
 python HTextExtract.py pack "%dst%\tmp" "%src%\ExText.txt" %fenc% || GOTO :error
 python HJFstBlk.py pack "%dst%\tmp" %fenc% || GOTO :error
-python EncConv.py %fenc% "%src%\0.cd.txt" %tenc% "%dst%\0.cd" || GOTO :error
+python EncConv.py %fenc% "%dst%\tmp\0.cd.txt" %tenc% "%dst%\0.cd" || GOTO :error
 python Hpack0cd.py pack "%dst%\0.cd" "%dst%\0.cd" %tenc% || GOTO :error
-python Hpack1cd.py pack "%src%\1.cd.txt" "%dst%\1.cd" || GOTO :error
+python Hpack1cd.py pack "%dst%\tmp\1.cd.txt" "%dst%\1.cd" || GOTO :error
 FOR %%i IN ("%dst%\tmp\00??.cd.txt", "%dst%\tmp\01??.cd.txt") DO (
 python EncConv.py %fenc% "%dst%\tmp\%%~ni.txt" %tenc% "%dst%\%%~ni" || GOTO :error
 python HpackScd.py pack "%dst%\%%~ni" "%dst%\%%~ni" %tenc% || GOTO :error

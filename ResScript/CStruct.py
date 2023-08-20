@@ -44,7 +44,7 @@ class CStruct(object):
 		return bytes(ts)
 	
 	def calcsize(self, fmt: str = None):
-		return struct.calcsize(fmt) if fmt else len(self.str)
+		return struct.calcsize(fmt) if fmt is not None else len(self.buf)
 	
 	def from_file(self, filepath: str):
 		with open(filepath, 'rb') as f:

@@ -26,7 +26,9 @@ struct
 	int first_cnt, second_cnt, third_cnt; // counts
 	struct // first block
 	{
-		int file, id, off;
+		int file; // 0XXX.cd file
+		int id; // idx (asc) in current file
+		int off; // offset in second_block
 	}first_block[first_cnt];
 	byte second_block[second_cnt]; // second block, moved by 3*sizeof(int)
 	byte third_block[third_count]; // third block
@@ -1555,20 +1557,22 @@ def RepackScd(filepath: str, outpath: str, enc: str):
 	name = name.encode(enc)
 	cs.pack('<260s', name + b'\x00' * (260 - len(name)))
 	cs.bitwise(RoundNameFunc, 0x20, 0x124-1)
-	cs.pack('<3I', len(first_block), len(lines) * 3 * 4, 0) # placeholder
+	cs.pack('<3I', len(first_block), 0, 0) # placeholder
 	ttpos = cs.pos
 	for i in first_block:
 		cs.pack('<3I', *map(lambda x: int(x, 16), i))
 	trd = CStruct()
+	second_cnt = 0
 	for i in lines:
-		if i.startswith('#'):
+		if i.startswith('#') or not i.strip():
 			continue
+		second_cnt += 1
 		cmd = int(i.partition('_')[0].strip(), 16)
 		cs.pack('<H', cmd)
-		inst[cmd][1](cs=cs, trd=trd, s=i.partition(':')[2].strip())
+		inst[cmd][1](cs=cs, trd=trd, s=i.partition(':')[2].partition('#')[0].strip())
 	cs.append(trd.get())
 	cs.pack('<4I', *[0,]*4)
-	cs.pack('<I', trd.pos, pos = ttpos - 4)
+	cs.pack('<2I', second_cnt * 3 * 4, trd.pos, pos = ttpos - 2 * 4)
 	cs.to_file(outpath)
 	filename = filepath.split('\\')[-1].split('/')[-1].strip()
 	print('HpackScd {}: {} commands processed'.format(filename, len(lines)))

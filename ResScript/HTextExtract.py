@@ -3,6 +3,7 @@ from HCommon import LoadFCS, SplitParam
 from typing import Dict, List, Tuple
 
 # NOTE: character "," can not be in texts
+# NOTE: text can not be too long; otherwise stack overflow
 
 def TextExp(dp: str, enc: str, outfile: str):
 	fcs = LoadFCS(dp, enc)
@@ -55,7 +56,7 @@ def TextImp(dp: str, enc: str, outfile: str):
 				assert(len(p) >= 6)
 				idx = int(p[1], 16)
 				if idx not in txts[i]:
-					print(f'HTextExtract: text idx {idx} not found, is this expected?')
+					print(f'HTextExtract: text idx {hex(idx)} not found, is this expected?')
 					continue
 				lns[k] = lns[k].partition(':')[0] + ': {}, ({},'+'{},'*len(txts[i][idx])+'{},{},{})'.format(
 					hex(txts[i][idx][0]), p[1], *txts[i][idx][1], *txts[i][idx][2])

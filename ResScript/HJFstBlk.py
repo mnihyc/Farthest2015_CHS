@@ -1,7 +1,7 @@
 import os, sys
 from HCommon import LoadFCS, SplitParam, parseInt
 from HpackScd import _FST_BLK_LINE
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 # Lines: Idt, Name, FstBlk ...
 
@@ -20,12 +20,22 @@ def JTableFromFB(dp: str, enc: str):
 			else:
 				break
 	tbl = [sorted(set(t)) for t in tbl]
-	for fi in fcs:
+	blks: Dict[int, Dict[int, str]] = [{} for _ in range(len(fcs))] # metainfo from 0.cd
+	with open(os.path.join(dp, '0.cd.txt'), 'r', encoding=enc) as f:
+		for line in [line.strip() for line in filter(lambda x: x, f.readlines())]:
+			assert(line.startswith('Blk '))
+			p = SplitParam(line, sfrom = 'Blk')
+			assert(len(p) == 6)
+			assert(tbl[int(p[0])].index(int(p[1], 16) // 12) == int(p[4], 16))
+			blks[int(p[0])][int(p[2], 16)] = p[5]
+	for i, fi in enumerate(fcs):
 		lns = fi[1]
 		for k in range(_FST_BLK_LINE, len(lns)):
 			if lns[k].startswith('FstBlk:'):
 				ints = SplitParam(lns[k], sfrom = 'Idx', func = parseInt)
 				lns[k] = 'FstBlkTable: Idx {}, {:04d}.cd, {}, JTable_{}'.format(hex(ints[0]), ints[1], hex(ints[2]), tbl[ints[1]].index(ints[3] // 12))
+				if i == ints[1] and ints[0] in blks[i]:
+					lns[k] += ', ' + blks[i][ints[0]]
 			else:
 				break
 	for i, fi in enumerate(fcs):
@@ -54,21 +64,31 @@ def JTableToFB(dp: str, enc: str):
 			if not lns[k].startswith('FstBlkTable:'):
 				break
 		for p in range(k, len(lns)):
-			if lns[p].startswith('_JTable_') or lns[p].startswith('#'):
+			if lns[p].startswith('_JTable_'):
 				tbl[i][int(lns[p].rpartition('_')[2].partition(':')[0].strip())] = p - k
-				k = k + 1
-	for fi in fcs:
+				k += 1
+			elif lns[p].startswith('#'):
+				k += 1
+	blks: Dict[int, List[Tuple[int, int, int, int, str]]] = [[] for _ in range(len(fcs))] # metainfo in 0.cd
+	for i, fi in enumerate(fcs):
 		lns = fi[1]
 		for k in range(_FST_BLK_LINE, len(lns)):
 			if lns[k].startswith('FstBlkTable:'):
 				ints = SplitParam(lns[k], sfrom = 'Idx')
-				assert(len(ints) == 4)
+				assert(len(ints) in [4, 5])
 				ints[0], ints[2] = int(ints[0], 16), int(ints[2], 16)
 				ints[1] = int(ints[1].partition('.')[0].strip())
-				ints[3] = tbl[ints[1]][int(ints[3].rpartition('_')[2])] * 12
-				lns[k] = 'FstBlk: Idx {}, {}, {}, {}'.format(*map(hex, ints))
+				ints[3] = tbl[ints[1]][jid := int(ints[3].rpartition('_')[2])] * 12
+				lns[k] = 'FstBlk: Idx {}, {}, {}, {}'.format(*map(hex, ints[:4]))
+				if i == ints[1] and len(ints) == 5:
+					blks[i].append((ints[3], ints[0], ints[2], jid, ints[4]))
 			else:
 				break
+	with open(os.path.join(dp, '0.cd.txt'), 'w', encoding=enc) as f:
+		# rebuild whole 0.cd
+		for i, blk in enumerate(blks):
+			for b in blk:
+				f.write('Blk {}, {}, {}, {}, {}, {}\n'.format(i, *map(hex, b[:4]), b[4]))
 	for fi in fcs:
 		lns = fi[1]
 		with open(os.path.join(dp, fi[0]), 'w', encoding=enc) as f:

@@ -479,13 +479,13 @@ struct
 }custom;
 '''
 # N D N / Custom
-def InstAOSndB(**kwargs):
+def InstChangeBG2(**kwargs):
 	cs = kwargs['cs']
 	trd = kwargs['trd']
 	if 's' not in kwargs.keys():
 		_, off, _ = cs.unpack('<HII')
 		if off != trd.pos:
-			raise Exception('Instruction AOSndB offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+			raise Exception('Instruction ChangeBG2 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
 		a,b,c,d,e = trd.unpack('<BBIIB', off)
 		return '({},{},{},{},{})'.format(*map(hex,(a,b,c,d,e)))
 	else:
@@ -505,13 +505,13 @@ struct
 }custom;
 '''
 # N D N / Custom
-def InstAOSndC(**kwargs):
+def InstChangeBG3(**kwargs):
 	cs = kwargs['cs']
 	trd = kwargs['trd']
 	if 's' not in kwargs.keys():
 		_, off, _ = cs.unpack('<HII')
 		if off != trd.pos:
-			raise Exception('Instruction AOSndC offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
+			raise Exception('Instruction ChangeBG3 offset error, {} expected, {} got'.format(hex(off), hex(trd.pos)))
 		a,b,c,d = trd.unpack('<BBII', off)
 		return '({},{},{},{})'.format(*map(hex,(a,b,c,d)))
 	else:
@@ -1362,8 +1362,8 @@ inst = {
 	0x0D: ('0x0D_AndVar', InstWWNN),
 	0x0E: ('0x0E_OrVar', InstWWNN),
 	0x0F: ('0x0F_GenGlobRnd', InstNDN),
-	0x10: ('0x10_LoadScen', InstNDN),
-	0x11: ('0x11_LoadScen', InstNDN),
+	0x10: ('0x10_MarkScenIdx', InstNDN),
+	0x11: ('0x11_MarkScenIdx', InstNDN),
 	0x12: ('0x12_SetWiGVar', InstWiGVar),
 	0x13: ('0x13_AddWiGVar', InstWiGVar),
 	0x14: ('0x14_OrWiGVar', InstWiGVar),
@@ -1423,16 +1423,16 @@ inst = {
 	0x4A: ('0x4A_U_GLSPTextFont', InstGLSPTextFont),
 	0x4B: ('0x4B_U_Set0GCLSP', InstNDN),
 	0x4C: ('0x4C_U_SetVGCLSP', InstNDN),
-	0x4D: ('0x4D_U_SetVGCLSPF', InstNDN),
+	0x4D: ('0x4D_SetTxtVertical', InstNDN),
 	0x4E: ('0x4E_U_TextIndent', InstNWWN),
 	0x4F: ('0x4F_U_AdvSkinMsgWin', InstNDN),
 	0x50: ('0x50_U_ResizeTxtWin', InstNWWN),
-	0x51: ('0x51_U_SkipTxtTrsA', InstWDN),
-	0x52: ('0x52_U_SkipTxtTrsB', InstWDN),
-	0x53: ('0x53_U_SkipTxtTrsC', InstWDN),
-	0x54: ('0x54_U_AdvObjSndA', InstWDN),
-	0x55: ('0x55_U_AdvObjSndB', InstAOSndB),
-	0x56: ('0x56_U_AdvObjSndC', InstAOSndC),
+	0x51: ('0x51_TextContBR', InstWDN),
+	0x52: ('0x52_TextContBRN', InstWDN),
+	0x53: ('0x53_TextContEND', InstWDN),
+	0x54: ('0x54_ChangeBG1', InstWDN),
+	0x55: ('0x55_ChangeBG2', InstChangeBG2),
+	0x56: ('0x56_ChangeBG3', InstChangeBG3),
 	0x57: ('0x57_U_SndObj1', InstWDN),
 	0x58: ('0x58_U_SndObj0', InstWDN),
 	0x59: ('0x59_U_SndObj2', InstSndObj2),

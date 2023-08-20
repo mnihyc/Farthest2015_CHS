@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, itertools
 from HCommon import LoadFCS, SplitParam, parseInt
 from HpackScd import _FST_BLK_LINE
 from typing import Dict, List, Tuple
@@ -28,12 +28,14 @@ def JTableFromFB(dp: str, enc: str):
 			assert(len(p) == 6)
 			assert(tbl[int(p[0])].index(int(p[1], 16) // 12) == int(p[4], 16))
 			blks[int(p[0])][int(p[2], 16)] = p[5]
+	fstb: Dict[int, Dict[int, Tuple[int, str]]] = [{} for _ in range(len(fcs))] # fstblk backup
 	for i, fi in enumerate(fcs):
 		lns = fi[1]
 		for k in range(_FST_BLK_LINE, len(lns)):
 			if lns[k].startswith('FstBlk:'):
 				ints = SplitParam(lns[k], sfrom = 'Idx', func = parseInt)
-				lns[k] = 'FstBlkTable: Idx {}, {:04d}.cd, {}, JTable_{}'.format(hex(ints[0]), ints[1], hex(ints[2]), tbl[ints[1]].index(ints[3] // 12))
+				fstb[i][ints[0]] = (ints[1], jid := tbl[ints[1]].index(ints[3] // 12))
+				lns[k] = 'FstBlkTable: Idx {}, {:04d}.cd, {}, JTable_{}'.format(hex(ints[0]), ints[1], hex(ints[2]), jid)
 				if i == ints[1] and ints[0] in blks[i]:
 					lns[k] += ', ' + blks[i][ints[0]]
 			else:
@@ -50,6 +52,12 @@ def JTableFromFB(dp: str, enc: str):
 			for p in range(k, len(lns)):
 				if p - k in tbl[i]:
 					f.write('_JTable_{}:\n'.format(tbl[i].index(p - k)))
+				if any(lns[p].startswith(bs) for bs in [f'{hex(ci)}_' for ci in itertools.chain(range(0x15, 0x22+1), range(0x24, 0x2F+1))]):
+					fid, jid = fstb[i][int(SplitParam(lns[p])[0], 16)]
+					lns[p] += '     # FstBlk, ' + '{:04d}.cd, JTable_{}'.format(fid, jid)
+				if lns[p].startswith('0x46_'):
+					fid, jid = fstb[i][int(SplitParam(lns[p])[4], 16)]
+					lns[p] += '     # FstBlk, ' + '{:04d}.cd, JTable_{}'.format(fid, jid)
 				f.write(lns[p] + '\n')
 	print('HJFstBlk: {} files, {} jtables processed'.format(len(fcs), sum([len(ti) for ti in tbl])))
 

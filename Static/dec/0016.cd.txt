@@ -1,325 +1,325 @@
 Idt: 0x7be92f2a, 0xb8b2d7b4, 0x3ba913, 0x5837e7f6
 Name: "09_回想さやか.rio"
-FstBlkTable: Idx 0x0, 0016.cd, 0x0, JTable_0
-FstBlkTable: Idx 0x1, 0016.cd, 0x0, JTable_0
-FstBlkTable: Idx 0x2, 0016.cd, 0x1, JTable_1
+FstBlkTable: Idx 0x0, 0016.cd, 0x0, JTable_0, ""
+FstBlkTable: Idx 0x1, 0016.cd, 0x0, JTable_0, "_begin"
+FstBlkTable: Idx 0x2, 0016.cd, 0x1, JTable_1, "rm307たまに早く出る"
 FstBlkTable: Idx 0x3, 0019.cd, 0x1, JTable_1
 FstBlkTable: Idx 0x4, 0010.cd, 0x2, JTable_2
-FstBlkTable: Idx 0x5, 0016.cd, 0x2, JTable_2
+FstBlkTable: Idx 0x5, 0016.cd, 0x2, JTable_2, "rm308沙也加との出会い・１"
 FstBlkTable: Idx 0x6, 0010.cd, 0x5, JTable_5
-FstBlkTable: Idx 0x7, 0016.cd, 0x3, JTable_3
+FstBlkTable: Idx 0x7, 0016.cd, 0x3, JTable_3, "rm309沙也加との出会い・２"
 FstBlkTable: Idx 0x8, 0010.cd, 0x8, JTable_8
-FstBlkTable: Idx 0x9, 0016.cd, 0x4, JTable_4
+FstBlkTable: Idx 0x9, 0016.cd, 0x4, JTable_4, "rm310笑顔・１"
 FstBlkTable: Idx 0xa, 0010.cd, 0xb, JTable_11
-FstBlkTable: Idx 0xb, 0016.cd, 0x5, JTable_5
+FstBlkTable: Idx 0xb, 0016.cd, 0x5, JTable_5, "rm311たまに早く出る－続き"
 FstBlkTable: Idx 0xc, 0010.cd, 0xe, JTable_14
-FstBlkTable: Idx 0xd, 0016.cd, 0x6, JTable_6
+FstBlkTable: Idx 0xd, 0016.cd, 0x6, JTable_6, "rm312千鳥先生の授業"
 FstBlkTable: Idx 0xe, 0010.cd, 0x11, JTable_17
-FstBlkTable: Idx 0xf, 0016.cd, 0x7, JTable_7
+FstBlkTable: Idx 0xf, 0016.cd, 0x7, JTable_7, "rm313廃工場・沙也加不在"
 FstBlkTable: Idx 0x10, 0010.cd, 0x14, JTable_20
-FstBlkTable: Idx 0x11, 0016.cd, 0x8, JTable_8
+FstBlkTable: Idx 0x11, 0016.cd, 0x8, JTable_8, "rm314廃工場・沙也加"
 FstBlkTable: Idx 0x12, 0010.cd, 0x18, JTable_23
-FstBlkTable: Idx 0x13, 0016.cd, 0x9, JTable_9
+FstBlkTable: Idx 0x13, 0016.cd, 0x9, JTable_9, "rm315早朝ランニング・単身"
 FstBlkTable: Idx 0x14, 0010.cd, 0x1b, JTable_27
-FstBlkTable: Idx 0x15, 0016.cd, 0xa, JTable_10
+FstBlkTable: Idx 0x15, 0016.cd, 0xa, JTable_10, "rm316魔女の噂"
 FstBlkTable: Idx 0x16, 0010.cd, 0x1e, JTable_30
-FstBlkTable: Idx 0x17, 0016.cd, 0xb, JTable_11
+FstBlkTable: Idx 0x17, 0016.cd, 0xb, JTable_11, "rm317笑顔・２"
 FstBlkTable: Idx 0x18, 0010.cd, 0x21, JTable_33
-FstBlkTable: Idx 0x19, 0016.cd, 0xc, JTable_12
+FstBlkTable: Idx 0x19, 0016.cd, 0xc, JTable_12, "rm318誰か"
 FstBlkTable: Idx 0x1a, 0010.cd, 0x25, JTable_36
-FstBlkTable: Idx 0x1b, 0016.cd, 0xd, JTable_13
+FstBlkTable: Idx 0x1b, 0016.cd, 0xd, JTable_13, "rm319抱擁"
 FstBlkTable: Idx 0x1c, 0010.cd, 0x28, JTable_40
-FstBlkTable: Idx 0x1d, 0016.cd, 0xe, JTable_14
+FstBlkTable: Idx 0x1d, 0016.cd, 0xe, JTable_14, "rm320ビジョン"
 FstBlkTable: Idx 0x1e, 0010.cd, 0x2c, JTable_43
-FstBlkTable: Idx 0x1f, 0016.cd, 0xf, JTable_15
+FstBlkTable: Idx 0x1f, 0016.cd, 0xf, JTable_15, "rm502ビジョン"
 FstBlkTable: Idx 0x20, 0010.cd, 0x30, JTable_47
-FstBlkTable: Idx 0x21, 0016.cd, 0x10, JTable_16
+FstBlkTable: Idx 0x21, 0016.cd, 0x10, JTable_16, "rm321章二のヨタ話"
 FstBlkTable: Idx 0x22, 0010.cd, 0x33, JTable_51
-FstBlkTable: Idx 0x23, 0016.cd, 0x11, JTable_17
+FstBlkTable: Idx 0x23, 0016.cd, 0x11, JTable_17, "rm322孤独"
 FstBlkTable: Idx 0x24, 0010.cd, 0x37, JTable_54
-FstBlkTable: Idx 0x25, 0016.cd, 0x12, JTable_18
+FstBlkTable: Idx 0x25, 0016.cd, 0x12, JTable_18, "rm323ザリガニ"
 FstBlkTable: Idx 0x26, 0010.cd, 0x3b, JTable_57
-FstBlkTable: Idx 0x27, 0016.cd, 0x13, JTable_19
+FstBlkTable: Idx 0x27, 0016.cd, 0x13, JTable_19, "rm324沙也加の粗茶"
 FstBlkTable: Idx 0x28, 0010.cd, 0x3e, JTable_61
-FstBlkTable: Idx 0x29, 0016.cd, 0x14, JTable_20
+FstBlkTable: Idx 0x29, 0016.cd, 0x14, JTable_20, "rm325宗多との出会い"
 FstBlkTable: Idx 0x2a, 0010.cd, 0x42, JTable_64
-FstBlkTable: Idx 0x2b, 0016.cd, 0x15, JTable_21
+FstBlkTable: Idx 0x2b, 0016.cd, 0x15, JTable_21, "rm326ブチとマルの墓参り"
 FstBlkTable: Idx 0x2c, 0010.cd, 0x45, JTable_68
-FstBlkTable: Idx 0x2d, 0016.cd, 0x16, JTable_22
+FstBlkTable: Idx 0x2d, 0016.cd, 0x16, JTable_22, "rm327笑顔・３ａ"
 FstBlkTable: Idx 0x2e, 0010.cd, 0x48, JTable_71
-FstBlkTable: Idx 0x2f, 0016.cd, 0x17, JTable_23
+FstBlkTable: Idx 0x2f, 0016.cd, 0x17, JTable_23, "rm328笑顔・３ｂ"
 FstBlkTable: Idx 0x30, 0010.cd, 0x4c, JTable_74
-FstBlkTable: Idx 0x31, 0016.cd, 0x18, JTable_24
+FstBlkTable: Idx 0x31, 0016.cd, 0x18, JTable_24, "rm329笑顔・３ｃ"
 FstBlkTable: Idx 0x32, 0010.cd, 0x50, JTable_78
-FstBlkTable: Idx 0x33, 0016.cd, 0x19, JTable_25
+FstBlkTable: Idx 0x33, 0016.cd, 0x19, JTable_25, "rm330笑顔・３－続き"
 FstBlkTable: Idx 0x34, 0010.cd, 0x53, JTable_82
-FstBlkTable: Idx 0x35, 0016.cd, 0x1a, JTable_26
+FstBlkTable: Idx 0x35, 0016.cd, 0x1a, JTable_26, "rm331墓参りからの続き"
 FstBlkTable: Idx 0x36, 0010.cd, 0x56, JTable_85
-FstBlkTable: Idx 0x37, 0016.cd, 0x1b, JTable_27
+FstBlkTable: Idx 0x37, 0016.cd, 0x1b, JTable_27, "rm332章二との出会い"
 FstBlkTable: Idx 0x38, 0010.cd, 0x59, JTable_88
-FstBlkTable: Idx 0x39, 0016.cd, 0x1c, JTable_28
+FstBlkTable: Idx 0x39, 0016.cd, 0x1c, JTable_28, "rm334ブランコ"
 FstBlkTable: Idx 0x3a, 0010.cd, 0x5c, JTable_91
-FstBlkTable: Idx 0x3b, 0016.cd, 0x1d, JTable_29
+FstBlkTable: Idx 0x3b, 0016.cd, 0x1d, JTable_29, "rm333デート（仮）～甘酸っぱい何かのために～"
 FstBlkTable: Idx 0x3c, 0010.cd, 0x5f, JTable_94
-FstBlkTable: Idx 0x3d, 0016.cd, 0x1e, JTable_30
+FstBlkTable: Idx 0x3d, 0016.cd, 0x1e, JTable_30, "rm334沙也加・Ｈ１"
 FstBlkTable: Idx 0x3e, 0010.cd, 0x64, JTable_97
-FstBlkTable: Idx 0x3f, 0016.cd, 0x1f, JTable_31
+FstBlkTable: Idx 0x3f, 0016.cd, 0x1f, JTable_31, "rm335いじめの矛先"
 FstBlkTable: Idx 0x40, 0010.cd, 0x68, JTable_100
-FstBlkTable: Idx 0x41, 0016.cd, 0x20, JTable_32
+FstBlkTable: Idx 0x41, 0016.cd, 0x20, JTable_32, "rm336空白の机"
 FstBlkTable: Idx 0x42, 0010.cd, 0x6b, JTable_104
-FstBlkTable: Idx 0x43, 0016.cd, 0x21, JTable_33
+FstBlkTable: Idx 0x43, 0016.cd, 0x21, JTable_33, "rm337沙也加・探索"
 FstBlkTable: Idx 0x44, 0010.cd, 0x6e, JTable_107
-FstBlkTable: Idx 0x45, 0016.cd, 0x22, JTable_34
+FstBlkTable: Idx 0x45, 0016.cd, 0x22, JTable_34, "rm338森"
 FstBlkTable: Idx 0x46, 0010.cd, 0x71, JTable_110
-FstBlkTable: Idx 0x47, 0016.cd, 0x23, JTable_35
+FstBlkTable: Idx 0x47, 0016.cd, 0x23, JTable_35, "rm339あたたかな空気"
 FstBlkTable: Idx 0x48, 0010.cd, 0x74, JTable_113
-FstBlkTable: Idx 0x49, 0016.cd, 0x24, JTable_36
+FstBlkTable: Idx 0x49, 0016.cd, 0x24, JTable_36, "rm340魔女狩りの噂"
 FstBlkTable: Idx 0x4a, 0010.cd, 0x77, JTable_116
-FstBlkTable: Idx 0x4b, 0016.cd, 0x25, JTable_37
+FstBlkTable: Idx 0x4b, 0016.cd, 0x25, JTable_37, "rm341魔女狩り・１"
 FstBlkTable: Idx 0x4c, 0010.cd, 0x7b, JTable_119
-FstBlkTable: Idx 0x4d, 0016.cd, 0x26, JTable_38
+FstBlkTable: Idx 0x4d, 0016.cd, 0x26, JTable_38, "rm342南の勧誘・１"
 FstBlkTable: Idx 0x4e, 0010.cd, 0x7f, JTable_123
-FstBlkTable: Idx 0x4f, 0016.cd, 0x27, JTable_39
+FstBlkTable: Idx 0x4f, 0016.cd, 0x27, JTable_39, "rm343魔女狩り・１－続き"
 FstBlkTable: Idx 0x50, 0010.cd, 0x83, JTable_127
-FstBlkTable: Idx 0x51, 0016.cd, 0x28, JTable_40
+FstBlkTable: Idx 0x51, 0016.cd, 0x28, JTable_40, "rm344孤人の果て"
 FstBlkTable: Idx 0x52, 0010.cd, 0x87, JTable_131
-FstBlkTable: Idx 0x53, 0016.cd, 0x29, JTable_41
+FstBlkTable: Idx 0x53, 0016.cd, 0x29, JTable_41, "rm345魔女狩り・２"
 FstBlkTable: Idx 0x54, 0010.cd, 0x8a, JTable_135
-FstBlkTable: Idx 0x55, 0016.cd, 0x2a, JTable_42
+FstBlkTable: Idx 0x55, 0016.cd, 0x2a, JTable_42, "rm346皆殺しの狩り・１"
 FstBlkTable: Idx 0x56, 0010.cd, 0x8e, JTable_138
-FstBlkTable: Idx 0x57, 0016.cd, 0x2b, JTable_43
+FstBlkTable: Idx 0x57, 0016.cd, 0x2b, JTable_43, "rm347足取りの途絶"
 FstBlkTable: Idx 0x58, 0010.cd, 0x91, JTable_141
-FstBlkTable: Idx 0x59, 0016.cd, 0x2c, JTable_44
+FstBlkTable: Idx 0x59, 0016.cd, 0x2c, JTable_44, "rm348皆殺しの狩り・２"
 FstBlkTable: Idx 0x5a, 0010.cd, 0x94, JTable_144
-FstBlkTable: Idx 0x5b, 0016.cd, 0x2d, JTable_45
+FstBlkTable: Idx 0x5b, 0016.cd, 0x2d, JTable_45, "rm349皆殺しの狩り・３"
 FstBlkTable: Idx 0x5c, 0010.cd, 0x97, JTable_147
-FstBlkTable: Idx 0x5d, 0016.cd, 0x2e, JTable_46
+FstBlkTable: Idx 0x5d, 0016.cd, 0x2e, JTable_46, "rm507沙也加・Ｈ２"
 FstBlkTable: Idx 0x5e, 0010.cd, 0x9a, JTable_150
-FstBlkTable: Idx 0x5f, 0016.cd, 0x2f, JTable_47
+FstBlkTable: Idx 0x5f, 0016.cd, 0x2f, JTable_47, "rm350沙也加の聖域"
 FstBlkTable: Idx 0x60, 0010.cd, 0x9d, JTable_153
-FstBlkTable: Idx 0x61, 0016.cd, 0x30, JTable_48
+FstBlkTable: Idx 0x61, 0016.cd, 0x30, JTable_48, "rm351沙也加・反故"
 FstBlkTable: Idx 0x62, 0010.cd, 0xa0, JTable_156
-FstBlkTable: Idx 0x63, 0016.cd, 0x31, JTable_49
+FstBlkTable: Idx 0x63, 0016.cd, 0x31, JTable_49, "rm352『自衛隊の一番偉い人』"
 FstBlkTable: Idx 0x64, 0010.cd, 0x35, JTable_159
-FstBlkTable: Idx 0x65, 0016.cd, 0x32, JTable_50
+FstBlkTable: Idx 0x65, 0016.cd, 0x32, JTable_50, "rm353『Ａ資金』"
 FstBlkTable: Idx 0x66, 0010.cd, 0x61, JTable_160
-FstBlkTable: Idx 0x67, 0016.cd, 0x33, JTable_51
+FstBlkTable: Idx 0x67, 0016.cd, 0x33, JTable_51, "rm354『定評』"
 FstBlkTable: Idx 0x68, 0010.cd, 0x62, JTable_161
-FstBlkTable: Idx 0x69, 0016.cd, 0x34, JTable_52
+FstBlkTable: Idx 0x69, 0016.cd, 0x34, JTable_52, "rm355『抵抗しなかったら』"
 FstBlkTable: Idx 0x6a, 0010.cd, 0x8c, JTable_162
-FstBlkTable: Idx 0x6b, 0016.cd, 0x35, JTable_53
+FstBlkTable: Idx 0x6b, 0016.cd, 0x35, JTable_53, "rm356『あの時』"
 FstBlkTable: Idx 0x6c, 0010.cd, 0xa2, JTable_163
 _JTable_0:
-0x10_LoadScen: 0x0
+0x10_MarkScenIdx: 0x0
 _JTable_1:
-0x10_LoadScen: 0x1
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x4
+0x10_MarkScenIdx: 0x1
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x4     # FstBlk, 0010.cd, JTable_2
 _JTable_2:
-0x10_LoadScen: 0x2
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x6
+0x10_MarkScenIdx: 0x2
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x6     # FstBlk, 0010.cd, JTable_5
 _JTable_3:
-0x10_LoadScen: 0x3
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x8
+0x10_MarkScenIdx: 0x3
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x8     # FstBlk, 0010.cd, JTable_8
 _JTable_4:
-0x10_LoadScen: 0x4
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0xa
+0x10_MarkScenIdx: 0x4
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0xa     # FstBlk, 0010.cd, JTable_11
 _JTable_5:
-0x10_LoadScen: 0x5
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0xc
+0x10_MarkScenIdx: 0x5
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0xc     # FstBlk, 0010.cd, JTable_14
 _JTable_6:
-0x10_LoadScen: 0x6
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0xe
+0x10_MarkScenIdx: 0x6
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0xe     # FstBlk, 0010.cd, JTable_17
 _JTable_7:
-0x10_LoadScen: 0x7
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x10
+0x10_MarkScenIdx: 0x7
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x10     # FstBlk, 0010.cd, JTable_20
 _JTable_8:
-0x10_LoadScen: 0x8
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x12
+0x10_MarkScenIdx: 0x8
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x12     # FstBlk, 0010.cd, JTable_23
 _JTable_9:
-0x10_LoadScen: 0x9
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x14
+0x10_MarkScenIdx: 0x9
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x14     # FstBlk, 0010.cd, JTable_27
 _JTable_10:
-0x10_LoadScen: 0xa
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x16
+0x10_MarkScenIdx: 0xa
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x16     # FstBlk, 0010.cd, JTable_30
 _JTable_11:
-0x10_LoadScen: 0xb
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x18
+0x10_MarkScenIdx: 0xb
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x18     # FstBlk, 0010.cd, JTable_33
 _JTable_12:
-0x10_LoadScen: 0xc
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x1a
+0x10_MarkScenIdx: 0xc
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x1a     # FstBlk, 0010.cd, JTable_36
 _JTable_13:
-0x10_LoadScen: 0xd
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x1c
+0x10_MarkScenIdx: 0xd
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x1c     # FstBlk, 0010.cd, JTable_40
 _JTable_14:
-0x10_LoadScen: 0xe
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x1e
+0x10_MarkScenIdx: 0xe
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x1e     # FstBlk, 0010.cd, JTable_43
 _JTable_15:
-0x10_LoadScen: 0xf
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x20
+0x10_MarkScenIdx: 0xf
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x20     # FstBlk, 0010.cd, JTable_47
 _JTable_16:
-0x10_LoadScen: 0x10
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x22
+0x10_MarkScenIdx: 0x10
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x22     # FstBlk, 0010.cd, JTable_51
 _JTable_17:
-0x10_LoadScen: 0x11
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x24
+0x10_MarkScenIdx: 0x11
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x24     # FstBlk, 0010.cd, JTable_54
 _JTable_18:
-0x10_LoadScen: 0x12
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x26
+0x10_MarkScenIdx: 0x12
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x26     # FstBlk, 0010.cd, JTable_57
 _JTable_19:
-0x10_LoadScen: 0x13
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x28
+0x10_MarkScenIdx: 0x13
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x28     # FstBlk, 0010.cd, JTable_61
 _JTable_20:
-0x10_LoadScen: 0x14
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x2a
+0x10_MarkScenIdx: 0x14
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x2a     # FstBlk, 0010.cd, JTable_64
 _JTable_21:
-0x10_LoadScen: 0x15
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x2c
+0x10_MarkScenIdx: 0x15
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x2c     # FstBlk, 0010.cd, JTable_68
 _JTable_22:
-0x10_LoadScen: 0x16
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x2e
+0x10_MarkScenIdx: 0x16
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x2e     # FstBlk, 0010.cd, JTable_71
 _JTable_23:
-0x10_LoadScen: 0x17
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x30
+0x10_MarkScenIdx: 0x17
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x30     # FstBlk, 0010.cd, JTable_74
 _JTable_24:
-0x10_LoadScen: 0x18
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x32
+0x10_MarkScenIdx: 0x18
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x32     # FstBlk, 0010.cd, JTable_78
 _JTable_25:
-0x10_LoadScen: 0x19
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x34
+0x10_MarkScenIdx: 0x19
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x34     # FstBlk, 0010.cd, JTable_82
 _JTable_26:
-0x10_LoadScen: 0x1a
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x36
+0x10_MarkScenIdx: 0x1a
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x36     # FstBlk, 0010.cd, JTable_85
 _JTable_27:
-0x10_LoadScen: 0x1b
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x38
+0x10_MarkScenIdx: 0x1b
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x38     # FstBlk, 0010.cd, JTable_88
 _JTable_28:
-0x10_LoadScen: 0x1c
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x3a
+0x10_MarkScenIdx: 0x1c
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x3a     # FstBlk, 0010.cd, JTable_91
 _JTable_29:
-0x10_LoadScen: 0x1d
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x3c
+0x10_MarkScenIdx: 0x1d
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x3c     # FstBlk, 0010.cd, JTable_94
 _JTable_30:
-0x10_LoadScen: 0x1e
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x3e
+0x10_MarkScenIdx: 0x1e
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x3e     # FstBlk, 0010.cd, JTable_97
 _JTable_31:
-0x10_LoadScen: 0x1f
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x40
+0x10_MarkScenIdx: 0x1f
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x40     # FstBlk, 0010.cd, JTable_100
 _JTable_32:
-0x10_LoadScen: 0x20
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x42
+0x10_MarkScenIdx: 0x20
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x42     # FstBlk, 0010.cd, JTable_104
 _JTable_33:
-0x10_LoadScen: 0x21
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x44
+0x10_MarkScenIdx: 0x21
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x44     # FstBlk, 0010.cd, JTable_107
 _JTable_34:
-0x10_LoadScen: 0x22
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x46
+0x10_MarkScenIdx: 0x22
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x46     # FstBlk, 0010.cd, JTable_110
 _JTable_35:
-0x10_LoadScen: 0x23
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x48
+0x10_MarkScenIdx: 0x23
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x48     # FstBlk, 0010.cd, JTable_113
 _JTable_36:
-0x10_LoadScen: 0x24
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x4a
+0x10_MarkScenIdx: 0x24
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x4a     # FstBlk, 0010.cd, JTable_116
 _JTable_37:
-0x10_LoadScen: 0x25
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x4c
+0x10_MarkScenIdx: 0x25
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x4c     # FstBlk, 0010.cd, JTable_119
 _JTable_38:
-0x10_LoadScen: 0x26
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x4e
+0x10_MarkScenIdx: 0x26
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x4e     # FstBlk, 0010.cd, JTable_123
 _JTable_39:
-0x10_LoadScen: 0x27
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x50
+0x10_MarkScenIdx: 0x27
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x50     # FstBlk, 0010.cd, JTable_127
 _JTable_40:
-0x10_LoadScen: 0x28
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x52
+0x10_MarkScenIdx: 0x28
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x52     # FstBlk, 0010.cd, JTable_131
 _JTable_41:
-0x10_LoadScen: 0x29
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x54
+0x10_MarkScenIdx: 0x29
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x54     # FstBlk, 0010.cd, JTable_135
 _JTable_42:
-0x10_LoadScen: 0x2a
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x56
+0x10_MarkScenIdx: 0x2a
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x56     # FstBlk, 0010.cd, JTable_138
 _JTable_43:
-0x10_LoadScen: 0x2b
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x58
+0x10_MarkScenIdx: 0x2b
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x58     # FstBlk, 0010.cd, JTable_141
 _JTable_44:
-0x10_LoadScen: 0x2c
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x5a
+0x10_MarkScenIdx: 0x2c
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x5a     # FstBlk, 0010.cd, JTable_144
 _JTable_45:
-0x10_LoadScen: 0x2d
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x5c
+0x10_MarkScenIdx: 0x2d
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x5c     # FstBlk, 0010.cd, JTable_147
 _JTable_46:
-0x10_LoadScen: 0x2e
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x5e
+0x10_MarkScenIdx: 0x2e
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x5e     # FstBlk, 0010.cd, JTable_150
 _JTable_47:
-0x10_LoadScen: 0x2f
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x60
+0x10_MarkScenIdx: 0x2f
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x60     # FstBlk, 0010.cd, JTable_153
 _JTable_48:
-0x10_LoadScen: 0x30
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x62
+0x10_MarkScenIdx: 0x30
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x62     # FstBlk, 0010.cd, JTable_156
 _JTable_49:
-0x10_LoadScen: 0x31
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x64
+0x10_MarkScenIdx: 0x31
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x64     # FstBlk, 0010.cd, JTable_159
 _JTable_50:
-0x10_LoadScen: 0x32
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x66
+0x10_MarkScenIdx: 0x32
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x66     # FstBlk, 0010.cd, JTable_160
 _JTable_51:
-0x10_LoadScen: 0x33
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x68
+0x10_MarkScenIdx: 0x33
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x68     # FstBlk, 0010.cd, JTable_161
 _JTable_52:
-0x10_LoadScen: 0x34
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x6a
+0x10_MarkScenIdx: 0x34
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x6a     # FstBlk, 0010.cd, JTable_162
 _JTable_53:
-0x10_LoadScen: 0x35
-0x22_EntScrFB: 0x3
-0x15_JmpScrFB: 0x6c
+0x10_MarkScenIdx: 0x35
+0x22_EntScrFB: 0x3     # FstBlk, 0019.cd, JTable_1
+0x15_JmpScrFB: 0x6c     # FstBlk, 0010.cd, JTable_163

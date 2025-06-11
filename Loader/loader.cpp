@@ -12,7 +12,7 @@
 #define ORIG_EXEHASH 0x629dee55cadf29c0
 
 // global debug
-DEBUG dbg{ L"Loader", L"D:/Projects/Farthest2015_CHS/Release/d_loader.txt", true};
+DEBUG dbg{ L"Loader", L"P:/Projects/Farthest2015_CHS/Release/d_loader.txt", true};
 
 // for easier coding
 using std::wstring;
@@ -54,7 +54,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 void MainProc()
 {
 	// remember to delete
-	SetCurrentDirectory(L"D:/Projects/Farthest2015_CHS/Release/");
+	SetCurrentDirectory(L"P:/Projects/Farthest2015_CHS/Release/");
 	
 	STARTUPINFO sii = { 0 }; sii.cb = sizeof(STARTUPINFO);
 	PROCESS_INFORMATION pii = { 0 };
@@ -62,6 +62,7 @@ void MainProc()
 		dbg.FatalPopup(L"Unable to create process " + wstring(EXE_FILENAME));
 	return;
 	
+/*
 	bool suc = false;
 	LPVOID lpBuffer{}; DWORD dwLength;
 	

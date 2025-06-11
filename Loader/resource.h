@@ -2,8 +2,6 @@
 // Microsoft Visual C++ 生成的包含文件。
 // 供 Loader.rc 使用
 //
-#define IDR_FILE_DLL1                   101
-#define IDR_FILE_EXE1                   102
 
 // Next default values for new objects
 // 

@@ -130,7 +130,20 @@ LPSTR WINAPI myCharNextA(LPCSTR lpsz)
 	return CharNextExA(936, lpsz, 0);
 }
 
-// read text function function
+
+void LogCurText(DWORD* buf)
+{
+	DWORD base = (DWORD)GetModuleHandleA(NULL);
+	DWORD GCScenario = base + 0x1194C0;
+	DWORD data = *(DWORD*)(GCScenario + 0x24);
+	int cdnum = *(int*)(data + 0x4);
+	int idx = buf[2];
+	wchar_t tmp[100];
+	wsprintf(tmp, L"cdnum: %04d, text index: 0x%x", cdnum, idx);
+	dbg.Log(tmp);
+}
+
+// read script text function
 HOOKJMP hksub_475E90;
 __declspec(naked) char __cdecl orgsub_475E90(DWORD* a1, DWORD* a2, int a3)
 {
@@ -149,8 +162,9 @@ __declspec(naked) char __cdecl orgsub_475E90(DWORD* a1, DWORD* a2, int a3)
 }
 char __stdcall mysub_475E90(DWORD* a1, DWORD* a2, int a3)
 {
+	LogCurText(a2);
 	char c = orgsub_475E90(a1, a2, a3);
-	return 0;
+	return c;
 }
 __declspec(naked) char __cdecl sub_475E90(int a3)
 {
@@ -174,10 +188,10 @@ void LogCurInst()
 	DWORD GCScenario = base + 0x1194C0;
 	DWORD data = *(DWORD*)(GCScenario + 0x24);
 	DWORD pos = *(DWORD*)(GCScenario + 0x28);
-	int num = *(int*)(data + 0x4);
+	int cdnum = *(int*)(data + 0x4);
 	DWORD secondBlock = *(DWORD*)(data + 0x28);
 	wchar_t tmp[100];
-	wsprintf(tmp, L"num: %04d, offset: 0x%x", num, (pos - secondBlock) / 12);
+	wsprintf(tmp, L"cdnum: %04d, inst offset: 0x%x", cdnum, (pos - secondBlock) / 12);
 	dbg.Log(tmp);
 }
 
@@ -198,8 +212,8 @@ __declspec(naked) DWORD* __cdecl orgsub_472AB0(DWORD* a1)
 }
 DWORD* __stdcall mysub_472AB0(DWORD* a1)
 {
-	DWORD* ret = orgsub_472AB0(a1);
 	LogCurInst();
+	DWORD* ret = orgsub_472AB0(a1);
 	return ret;
 }
 __declspec(naked) DWORD* __cdecl sub_472AB0()
@@ -231,8 +245,8 @@ __declspec(naked) char __cdecl orgsub_4BAA10(DWORD* a1)
 }
 char __stdcall mysub_4BAA10(DWORD* a1)
 {
-	char ret = orgsub_4BAA10(a1);
 	LogCurInst();
+	char ret = orgsub_4BAA10(a1);
 	return ret;
 }
 __declspec(naked) char __cdecl sub_4BAA10()
@@ -318,7 +332,7 @@ void MainProc()
 	const BYTE NOPs[] = { "\x90\x90" };
 	suc = HOOK::patch(base + 0xBA268, NOPs, 0x2);
 	if (!suc)
-		dbg.FatalPopup(L"Unable to patch hex:BA268 NOP");
+		dbg.FatalPopup(L"Unable to patch hex:4BA268 NOP");
 	
 	// patch WINAPI
 	suc = hkCreateFileA.hook(myCreateFileA, L"CreateFileA");
@@ -342,18 +356,20 @@ void MainProc()
 	
 	suc = hksub_475E90.hook(sub_475E90, (LPVOID)(base + 0x75E90), 6);
 	if (!suc)
-		dbg.FatalPopup(L"Unable to hook sub_475E90");
+		dbg.FatalPopup(L"Unable to hook sub_475E90 ReadScriptText");
 
+	
 	suc = hksub_472AB0.hook(sub_472AB0, (LPVOID)(base + 0x72AB0), 6);
 	if (!suc)
-		dbg.FatalPopup(L"Unable to hook sub_472AB0");
+		dbg.FatalPopup(L"Unable to hook sub_472AB0 ReadFuncFromGCScenario");
 	suc = hksub_4BAA10.hook(sub_4BAA10, (LPVOID)(base + 0xBAA10), 6);
 	if (!suc)
-		dbg.FatalPopup(L"Unable to hook sub_4BAA10");
+		dbg.FatalPopup(L"Unable to hook sub_4BAA10 MoveNextScenarioInstruction");
 	
+
 	suc = hkRoundKey.hook(gdRoundKey, (LPVOID)(base + 0xA7BE0), 8);
 	if (!suc)
-		dbg.FatalPopup(L"Unable to hook hex:4A7BE0 gdRoundKey");
+		dbg.FatalPopup(L"Unable to hook hex:4A7BE0 RoundKey");
 
 	
 	

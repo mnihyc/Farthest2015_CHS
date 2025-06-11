@@ -45,16 +45,6 @@ END
 
 #endif    // APSTUDIO_INVOKED
 
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// FILE
-//
-
-IDR_FILE_DLL1           FILE                    "..\\Release\\DllProc.dll"
-
-IDR_FILE_EXE1           FILE                    "..\\Static\\Farthest2015.exe"
-
 #endif    // 中文(简体，中国) resources
 /////////////////////////////////////////////////////////////////////////////
 

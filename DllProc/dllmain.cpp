@@ -130,6 +130,21 @@ LPSTR WINAPI myCharNextA(LPCSTR lpsz)
 	return CharNextExA(936, lpsz, 0);
 }
 
+// render special characters absent in gbk
+HOOKIAT hkGetGlyphOutlineA;
+typedef DWORD(WINAPI* tpGetGlyphOutlineA)(HDC, UINT, UINT, LPGLYPHMETRICS, DWORD, LPVOID, const MAT2*);
+DWORD WINAPI myGetGlyphOutlineA(HDC hdc, UINT uChar, UINT fuFormat, LPGLYPHMETRICS lpgm, DWORD cjBuffer, LPVOID pvBuffer, const MAT2* lpmat2)
+{
+	/*tpGetGlyphOutlineA GGOA = static_cast<tpGetGlyphOutlineA>(hkGetGlyphOutlineA.get());
+	wchar_t s[100] = { 0 };
+	wsprintf(s, L"GetGlyphOutlineA: 0x%x", uChar);
+	dbg.Log(s);
+	return GGOA(hdc, uChar, fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);*/
+	char uchar[] = { (uChar >> 8) & 0xFF, uChar & 0xFF }; // why is this reversed? anyway, it is working like this.
+	wstring wch = MBTWS(uchar, 936);
+	if (wch[0] == L'★') wch = L"♪";
+	return GetGlyphOutlineW(hdc, wch[0], fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);
+}
 
 void LogCurText(DWORD* buf)
 {
@@ -353,6 +368,9 @@ void MainProc()
 	suc = hkCharNextA.hook(myCharNextA, L"CharNextA");
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook CharNextA");
+	suc = hkGetGlyphOutlineA.hook(myGetGlyphOutlineA, L"GetGlyphOutlineA");
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook GetGlyphOutlineA");
 	
 	suc = hksub_475E90.hook(sub_475E90, (LPVOID)(base + 0x75E90), 6);
 	if (!suc)

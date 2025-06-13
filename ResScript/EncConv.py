@@ -8,7 +8,7 @@ if __name__=='__main__':
 	with open(infile, 'rb') as f:
 		t = f.read()
 		s = t.decode(inenc)
-	# convertion from shift-jis to gbk; replace invalid characters
+	# conversion from shift-jis to gbk; replace invalid characters
 	if outenc == 'gbk':
 		rep = {
 			'\u266a': '\u2605', # ♪ -> ★

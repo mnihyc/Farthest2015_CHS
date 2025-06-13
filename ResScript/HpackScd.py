@@ -348,10 +348,10 @@ def InstShowText(**kwargs):
 Custom Structure from sub_494A60 sub_494B10
 struct
 {
-	 short a,b; // unknown
+	 short line,first; // starting 1
 	 int c,d; // unknown
 	 int len; // length of string
-	 char str[len]; // (UNKNOWN) trailing zero
+	 char str[len]; // without trailing zero
 }custom;
 '''
 # N D N / Custom
@@ -381,7 +381,7 @@ def InstTextRbFS(**kwargs):
 Custom Structure from ScriptInstruction_0x46
 struct
 {
-	 short a,b,c; // unknown
+	 short line,first,length; // starting 1
 	 int var; // a variable 
 	 int idx; // target index in first block
 	 int f; // unknown
@@ -1564,12 +1564,12 @@ def RepackScd(filepath: str, outpath: str, enc: str):
 	trd = CStruct()
 	second_cnt = 0
 	for i in lines:
-		if i.startswith('#') or not i.strip():
+		if i.startswith('#') or i.startswith('//') or not i.strip():
 			continue
 		second_cnt += 1
 		cmd = int(i.partition('_')[0].strip(), 16)
 		cs.pack('<H', cmd)
-		inst[cmd][1](cs=cs, trd=trd, s=i.partition(':')[2].partition('#')[0].strip())
+		inst[cmd][1](cs=cs, trd=trd, s=i.partition(':')[2].partition('#')[0].partition('//')[0].strip())
 	cs.append(trd.get())
 	cs.pack('<4I', *[0,]*4)
 	cs.pack('<2I', second_cnt * 3 * 4, trd.pos, pos = ttpos - 2 * 4)

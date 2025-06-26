@@ -92,7 +92,7 @@ def TextImp(dp: str, enc: str, outfile: str):
 						print(f'HTextExtract: text idx {i}/{hex(idx)} not found in hyptxt, is this expected?')
 					else:
 						lns[saved_hyptxt[0]] = lns[saved_hyptxt[0]].partition(':')[0] + ': ({},{},{},{},{},{})'.format(
-							*nhyptxt[i][idx], *saved_hyptxt[1][3:])
+							*map(hex, nhyptxt[i][idx]), *saved_hyptxt[1][3:])
 					saved_hyptxt = None
 				if idx in txts[i]:
 					lns[k] = lns[k].partition(':')[0] + (': {}, ({},'+'{},'*len(txts[i][idx])+'{},{},{})').format(

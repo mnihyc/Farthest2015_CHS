@@ -135,11 +135,15 @@ HOOKIAT hkGetGlyphOutlineA;
 typedef DWORD(WINAPI* tpGetGlyphOutlineA)(HDC, UINT, UINT, LPGLYPHMETRICS, DWORD, LPVOID, const MAT2*);
 DWORD WINAPI myGetGlyphOutlineA(HDC hdc, UINT uChar, UINT fuFormat, LPGLYPHMETRICS lpgm, DWORD cjBuffer, LPVOID pvBuffer, const MAT2* lpmat2)
 {
-	/*tpGetGlyphOutlineA GGOA = static_cast<tpGetGlyphOutlineA>(hkGetGlyphOutlineA.get());
-	wchar_t s[100] = { 0 };
-	wsprintf(s, L"GetGlyphOutlineA: 0x%x", uChar);
-	dbg.Log(s);
-	return GGOA(hdc, uChar, fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);*/
+	tpGetGlyphOutlineA GGOA = static_cast<tpGetGlyphOutlineA>(hkGetGlyphOutlineA.get());
+	//wchar_t s[100] = { 0 };
+	//wsprintf(s, L"GetGlyphOutlineA: 0x%x", uChar);
+	//dbg.Log(s);
+	if (uChar <= 0xFF)
+	{
+		// we don't bother with single byte characters
+		return GGOA(hdc, uChar, fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);
+	}
 	char uchar[] = { (uChar >> 8) & 0xFF, uChar & 0xFF }; // why is this reversed? anyway, it is working like this.
 	wstring wch = MBTWS(uchar, 936);
 	if (wch[0] == L'★') wch = L"♪";

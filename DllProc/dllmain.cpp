@@ -41,6 +41,18 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	return TRUE;
 }
 
+unsigned simple_hash(const char* str)
+{
+	unsigned hash = 5381;
+	int c;
+	while ((c = *str++))
+	{
+		hash = ((hash << 5) + hash) + c; // hash * 33 + c
+	}
+	return hash;
+}
+
+
 // perform virtual file map
 HOOKIAT hkCreateFileA;
 typedef HANDLE (WINAPI *tpCreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
@@ -71,7 +83,7 @@ void WINAPI myOutputDebugStringA(LPCSTR lpOutputString)
 {
 	tpOutputDebugStringA ODA = static_cast<tpOutputDebugStringA>(hkOutputDebugStringA.get());
 	//ODA(lpOutputString);
-	wstring ws = MBTWS(lpOutputString);
+	wstring ws = MBTWS(lpOutputString, 936);
 	dbg.Log(ws);
 }
 
@@ -107,7 +119,17 @@ HFONT WINAPI myCreateFontA(
 )
 {
 	tpCreateFontA CFA = static_cast<tpCreateFontA>(hkCreateFontA.get());
-	//iCharSet = 0x86;
+	iCharSet = 0x86; // GB2312_CHARSET
+	if (simple_hash(pszFaceName) == 0x8eabf25c)
+	{
+		// ＭＳ ゴシック
+		pszFaceName = "\xCB\xCE\xCC\xE5"; // GBK 宋体
+	}
+	if (simple_hash(pszFaceName) == 0xb7319fef)
+	{
+		// ＭＳ Ｐゴシック
+		pszFaceName = "\xBA\xDA\xCC\xE5"; // GBK 黑体
+	}
 	HFONT ret = CFA(cHeight, cWidth, cEscapement, cOrientation, cWeight, bItalic, bUnderline, bStrikeOut, iCharSet, iOutPrecision, iClipPrecision, iQuality, iPitchAndFamily, pszFaceName);
 	return ret;
 }
@@ -136,9 +158,9 @@ typedef DWORD(WINAPI* tpGetGlyphOutlineA)(HDC, UINT, UINT, LPGLYPHMETRICS, DWORD
 DWORD WINAPI myGetGlyphOutlineA(HDC hdc, UINT uChar, UINT fuFormat, LPGLYPHMETRICS lpgm, DWORD cjBuffer, LPVOID pvBuffer, const MAT2* lpmat2)
 {
 	tpGetGlyphOutlineA GGOA = static_cast<tpGetGlyphOutlineA>(hkGetGlyphOutlineA.get());
-	//wchar_t s[100] = { 0 };
-	//wsprintf(s, L"GetGlyphOutlineA: 0x%x", uChar);
-	//dbg.Log(s);
+	/*wchar_t s[100] = {0};
+	wsprintf(s, L"GetGlyphOutlineA: 0x%x", uChar);
+	dbg.Log(s);*/
 	if (uChar <= 0xFF)
 	{
 		// we don't bother with single byte characters
@@ -149,6 +171,49 @@ DWORD WINAPI myGetGlyphOutlineA(HDC hdc, UINT uChar, UINT fuFormat, LPGLYPHMETRI
 	if (wch[0] == L'★') wch = L"♪";
 	return GetGlyphOutlineW(hdc, wch[0], fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);
 }
+
+
+// translate dynamic sjis texts in win components
+HOOKIAT hkSetDlgItemText;
+typedef BOOL(WINAPI* tpSetDlgItemTextA)(HWND, int, LPCSTR);
+BOOL WINAPI mySetDlgItemTextA(HWND hDlg, int nIDDlgItem, LPCSTR lpString)
+{
+	tpSetDlgItemTextA SDITA = static_cast<tpSetDlgItemTextA>(hkSetDlgItemText.get());
+	if (lpString == NULL || strlen(lpString) == 0)
+		return SDITA(hDlg, nIDDlgItem, lpString);
+	if (strlen(lpString) % 2 == 0)
+	{
+		for (unsigned i = 0; i < strlen(lpString); i += 2)
+		{
+			if (!(lpString[i] == '\x81' && lpString[i + 1] == '\xA1'))
+			{
+				goto end;
+			}
+		}
+		// all chars are '■'  replace to gbk
+		static char newstr[128] = { 0 };
+		for (unsigned i = 0; i < strlen(lpString) && i < 100; i += 2)
+		{
+			newstr[i] = '\xA1';
+			newstr[i + 1] = '\xF6';
+			newstr[i + 2] = '\x00';
+		}
+		lpString = newstr;
+	}
+end:
+	return SDITA(hDlg, nIDDlgItem, lpString);
+}
+
+HOOKIAT hkSetWindowText;
+typedef BOOL(WINAPI* tpSetWindowTextA)(HWND, LPCSTR);
+BOOL WINAPI mySetWindowTextA(HWND hWnd, LPCSTR lpString)
+{
+	tpSetWindowTextA SWTA = static_cast<tpSetWindowTextA>(hkSetWindowText.get());
+	if (lpString == NULL || strlen(lpString) == 0)
+		return SWTA(hWnd, lpString);
+	return SWTA(hWnd, lpString);
+}
+
 
 void LogCurText(DWORD* buf)
 {
@@ -337,7 +402,7 @@ void MainProc()
 	const BYTE _PFont1[] = { "\xCB\xCE\xCC\xE5" }; // GBK 宋体
 	suc = HOOK::patch(base + 0xFA874, (BYTE)0, 0xD) && HOOK::patch(base + 0xFA874, _PFont1, sizeof(_PFont1));
 	suc &= HOOK::patch(base + 0xFA998, (BYTE)0x86, 0x1); // GB2312_CHARSET
-	const BYTE _PFont2[] = { "\xCB\xCE\xCC\xE5" }; // GBK 宋体
+	const BYTE _PFont2[] = { "\xBA\xDA\xCC\xE5" }; // GBK 黑体
 	suc &= HOOK::patch(base + 0xFA9A4, (BYTE)0, 0xF) && HOOK::patch(base + 0xFA9A4, _PFont2, sizeof(_PFont2));
 	suc &= HOOK::patch(base + 0xFAAC8, (BYTE)0x86, 0x1); // GB2312_CHARSET
 	if (!suc)
@@ -375,6 +440,12 @@ void MainProc()
 	suc = hkGetGlyphOutlineA.hook(myGetGlyphOutlineA, L"GetGlyphOutlineA");
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook GetGlyphOutlineA");
+	suc = hkSetDlgItemText.hook(mySetDlgItemTextA, L"SetDlgItemTextA");
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook SetDlgItemTextA");
+	suc = hkSetWindowText.hook(mySetWindowTextA, L"SetWindowTextA");
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook SetWindowTextA");
 	
 	suc = hksub_475E90.hook(sub_475E90, (LPVOID)(base + 0x75E90), 6);
 	if (!suc)

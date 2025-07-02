@@ -102,6 +102,9 @@ def TextImp(dp: str, enc: str, outfile: str):
 					assert(len(texts) == len(res))
 					lns[k] = lns[k].partition(':')[0] + (': {}, ({},'+'"{}",'*len(texts)+'{},{},{})').format(
 						p[0], p[1], *texts, p[-3], p[-2], p[-1])
+			if lns[k].startswith('0x44_'):
+				# strip text ruby
+				lns[k] = '#' + lns[k]
 		assert(saved_hyptxt is None)
 		# dry run? or replace
 		with open(os.path.join(dp, fi[0]), 'w', encoding=enc) as f:

@@ -130,7 +130,8 @@ bool HOOKIAT::replace(LPVOID rpF)
 	while (importDescriptor->Name != NULL)
 	{
 		libraryName = (LPCSTR)(importDescriptor->Name + (DWORD_PTR)imageBase);
-		if (_stricmp(libraryName, "DllProc.dll")!=0 && (library = LoadLibraryA(libraryName)))
+		
+		if (_stricmp(libraryName, "DllProc.dll")!=0 && ((library = GetModuleHandleA(libraryName)) || (library = LoadLibraryA(libraryName))))
 		{
 			PIMAGE_THUNK_DATA originalFirstThunk = NULL, firstThunk = NULL;
 			originalFirstThunk = (PIMAGE_THUNK_DATA)((DWORD_PTR)imageBase + importDescriptor->OriginalFirstThunk);
@@ -162,6 +163,7 @@ bool HOOKIAT::replace(LPVOID rpF)
 
 bool HOOK::patch(DWORD_PTR addr, const BYTE* arr, DWORD size)
 {
+	if (size == 0) return true;
 	DWORD oldProtect = 0;
 	if (!VirtualProtect((LPVOID)addr, size, PAGE_READWRITE, &oldProtect))
 		return false;
@@ -175,6 +177,7 @@ bool HOOK::patch(DWORD_PTR addr, const BYTE* arr, DWORD size)
 
 bool HOOK::patch(DWORD_PTR addr, const BYTE data, DWORD size)
 {
+	if (size == 0) return true;
 	DWORD oldProtect = 0;
 	if (!VirtualProtect((LPVOID)addr, size, PAGE_READWRITE, &oldProtect))
 		return false;

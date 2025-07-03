@@ -11,7 +11,8 @@ if __name__=='__main__':
 	# conversion from shift-jis to gbk; replace invalid characters
 	if outenc == 'gbk':
 		rep = {
-			'\u266a': '\u2605', # ♪ -> ★
+			#'\u266a': '\u2605', # ♪ -> ★
+			'\u266a': '\u9f1d', # using a rare character to maintain ♪
 			'\u30fb': '\u00b7', # ・ -> ·
 			'\uff65': '\u00b7', # ･ -> ·
 			'\uff6c': '\u30e3', # ｬ -> ャ

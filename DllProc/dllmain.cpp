@@ -256,7 +256,7 @@ DWORD WINAPI myGetGlyphOutlineA(HDC hdc, UINT uChar, UINT fuFormat, LPGLYPHMETRI
 	}
 	char uchar[] = { (uChar >> 8) & 0xFF, uChar & 0xFF }; // why is this reversed? anyway, it is working like this.
 	wstring wch = MBTWS(uchar, 936);
-	if (wch[0] == L'★') wch = L"♪";
+	if (wch[0] == L'\u9f1d') wch = L"♪";
 	return GetGlyphOutlineW(hdc, wch[0], fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);
 }
 
@@ -1060,7 +1060,7 @@ namespace DbgWindow
 
 
 	// ----------------------------------------------------------
-	// Public API — call from your code.
+	// Public API — call from outside code.
 	// Creates/updates the window on demand.
 	// ----------------------------------------------------------
 	static void start_window(const char* caption_utf8, const char* text_utf8)
@@ -1147,11 +1147,18 @@ void LogCurText(DWORD* buf)
 	dbg.Log(tmp);
 	wsprintf(tmp, L"Debug Window  (cd: %04d | off: 0x%x | text: 0x%x)", cdnum, offset, idx);
 	DbgWindow::update_caption(tmp);
+	if (!jap_map[cdnum].contains(idx) || jap_map[cdnum][idx].empty())
+	{
+		DbgWindow::update_text(L"");
+		return;
+	}
 	std::vector<std::wstring> texts = jap_map[cdnum][idx];
 	if (hyp_map[cdnum].contains(idx) && hyp_map[cdnum][idx].size() > 0)
 		for (const auto& hyp : hyp_map[cdnum][idx])
 		{
-			auto& [line, start, len] = hyp;
+			auto [line, start, len] = hyp;
+			if (! (line - 1 < texts.size() && start - 1 + len < texts[line - 1].size()))
+				line++; // maybe character name
 			if (line - 1 < texts.size() && start - 1 + len < texts[line - 1].size())
 			{
 				// use quotes to represent hyper text

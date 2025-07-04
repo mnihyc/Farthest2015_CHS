@@ -115,7 +115,7 @@ HWND WINAPI myCreateWindowExA(
 {
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	if (lpClassName == lpWindowName)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1 (2025.07.03)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1.1 (2025.07.03)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	return CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
@@ -998,7 +998,7 @@ namespace DbgWindow
 		DWORD ex = WS_EX_TOPMOST | WS_EX_NOACTIVATE;
 		g_hWnd = CreateWindowExW(ex, kClass, g_caption.c_str(),
 			WS_OVERLAPPEDWINDOW,
-			CW_USEDEFAULT, CW_USEDEFAULT, 680, 180,
+			CW_USEDEFAULT, CW_USEDEFAULT, 700, 200,
 			nullptr, nullptr, g_hInst, nullptr);
 		if (!g_hWnd) return 0;
 
@@ -1153,14 +1153,16 @@ void LogCurText(DWORD* buf)
 		return;
 	}
 	std::vector<std::wstring> texts = jap_map[cdnum][idx];
+	int prev_line = 0;
 	if (hyp_map[cdnum].contains(idx) && hyp_map[cdnum][idx].size() > 0)
 		for (const auto& hyp : hyp_map[cdnum][idx])
 		{
 			auto [line, start, len] = hyp;
 			if (! (line - 1 < texts.size() && start - 1 + len < texts[line - 1].size()))
 				line++; // maybe character name
-			if (line - 1 < texts.size() && start - 1 + len < texts[line - 1].size())
+			if (line != prev_line && line - 1 < texts.size() && start - 1 + len < texts[line - 1].size())
 			{
+				prev_line = line;
 				// use quotes to represent hyper text
 				auto& text = texts[line - 1];
 				text.insert(text.begin() + start - 1, L'"');

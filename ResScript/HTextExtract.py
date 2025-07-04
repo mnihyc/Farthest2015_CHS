@@ -1,6 +1,7 @@
 import os, sys, re
 from HCommon import LoadFCS, SplitParam
 from typing import Dict, List, Tuple
+from collections import defaultdict
 
 # NOTE: character "," can not be in texts
 # NOTE: text can not be too long; otherwise stack overflow
@@ -34,7 +35,7 @@ def TextImp(dp: str, enc: str, outfile: str):
 	blks = '\n'.join(lines).split('\n\n')
 	txts: Dict[int, Dict[int, Tuple[int, List[str], Tuple[int, int, int]]]] = [{} for _ in range(len(fcs))]
 	ntxts: Dict[int, Dict[int, Tuple[str]]] = [{} for _ in range(len(fcs))]
-	nhyptxt: Dict[int, Dict[int, Tuple[int, int, int]]] = [{} for _ in range(len(fcs))]
+	nhyptxt: Dict[int, Dict[int, List[Tuple[int, int, int]]]] = [defaultdict(list) for _ in range(len(fcs))]
 	for blk in blks:
 		line = [i for i in blk.split('\n') if not i.startswith('//') and i]
 		if not line: continue
@@ -68,17 +69,17 @@ def TextImp(dp: str, enc: str, outfile: str):
 			cdnum, idx = int(li[0][:4]), int(li[0][4:], 16)
 			li = li[2].strip().split(' ')
 			assert(li[0].startswith('Line=') and li[1].startswith('Char=') and li[2].startswith('Len='))
-			nhyptxt[cdnum][idx] = (int(li[0][5:]), int(li[1][5:]), int(li[2][4:])) # line, char, len
+			nhyptxt[cdnum][idx].append((int(li[0][5:]), int(li[1][5:]), int(li[2][4:]))) # line, char, len
 		else:
 			raise RuntimeError(f'unimplemented {line}')
 	for i, fi in enumerate(fcs):
 		lns = fi[1]
-		saved_hyptxt = None
+		saved_hyptxt = []
 		for k in range(len(lns)):
 			if lns[k].startswith('0x46_'):
 				p = SplitParam(lns[k].partition('#')[0].partition('//')[0], sfrom = ':')
 				assert(len(p) == 6)
-				saved_hyptxt = (k, p)
+				saved_hyptxt.append((k, p))
 			if lns[k].startswith('0x40_') or lns[k].startswith('0x41_'):
 				p = SplitParam(lns[k].partition('#')[0].partition('//')[0], sfrom = ':')
 				assert(len(p) >= 6)
@@ -91,9 +92,11 @@ def TextImp(dp: str, enc: str, outfile: str):
 					if idx not in nhyptxt[i]:
 						print(f'HTextExtract: text idx {i}/{hex(idx)} not found in hyptxt, is this expected?')
 					else:
-						lns[saved_hyptxt[0]] = lns[saved_hyptxt[0]].partition(':')[0] + ': ({},{},{},{},{},{})'.format(
-							*map(hex, nhyptxt[i][idx]), *saved_hyptxt[1][3:])
-					saved_hyptxt = None
+						assert(len(saved_hyptxt) == len(nhyptxt[i][idx]))
+						for saved_thyptxt, nhyptxtt in zip(saved_hyptxt, nhyptxt[i][idx]):
+							lns[saved_thyptxt[0]] = lns[saved_thyptxt[0]].partition(':')[0] + ': ({},{},{},{},{},{})'.format(
+								*map(hex, nhyptxtt), *saved_thyptxt[1][3:])
+					saved_hyptxt = []
 				if idx in txts[i]:
 					lns[k] = lns[k].partition(':')[0] + (': {}, ({},'+'{},'*len(txts[i][idx])+'{},{},{})').format(
 						hex(txts[i][idx][0]), p[1], *txts[i][idx][1], *txts[i][idx][2])
@@ -105,7 +108,7 @@ def TextImp(dp: str, enc: str, outfile: str):
 			if lns[k].startswith('0x44_'):
 				# strip text ruby
 				lns[k] = '#' + lns[k]
-		assert(saved_hyptxt is None)
+		assert(not saved_hyptxt)
 		# dry run? or replace
 		with open(os.path.join(dp, fi[0]), 'w', encoding=enc) as f:
 			f.write('\n'.join(lns))

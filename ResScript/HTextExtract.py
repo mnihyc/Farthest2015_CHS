@@ -127,8 +127,10 @@ def TextImp(dp: str, enc: str, outfile: str):
 					lns[k] = lns[k].partition(':')[0] + (': {}, ({},'+'{},'*len(txts[i][idx])+'{},{},{})').format(
 						hex(txts[i][idx][0]), p[1], *txts[i][idx][1], *txts[i][idx][2])
 				elif idx in ntxts[i]:
-					texts = ntxts[i][idx]
+					texts = ntxts[i][idx].copy()
 					assert(len(texts) == len(res))
+					while len(texts) > 0 and texts[-1] == '':
+						texts.pop()
 					lns[k] = lns[k].partition(':')[0] + (': {}, ({},'+'"{}",'*len(texts)+'{},{},{})').format(
 						p[0], p[1], *texts, p[-3], p[-2], p[-1])
 			if lns[k].startswith('0x44_'):

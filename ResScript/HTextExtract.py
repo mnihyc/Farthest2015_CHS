@@ -72,14 +72,33 @@ def TextImp(dp: str, enc: str, outfile: str):
 			nhyptxt[cdnum][idx].append((int(li[0][5:]), int(li[1][5:]), int(li[2][4:]))) # line, char, len
 		else:
 			raise RuntimeError(f'unimplemented {line}')
+
+	ntxfonts: Dict[int, Dict[int, List[Tuple[int, int, int]]]] = [defaultdict(list) for _ in range(len(fcs))]
+	if os.path.exists(outfile + '.TextFont.txt'):
+		print('HTextExtract: loading text font data')
+		with open(outfile + '.TextFont.txt', 'r', encoding=enc) as f:
+			lines = [line.strip() for line in f.readlines() if line.strip() and not line.strip().startswith('#')]
+			for line in lines:
+				cdnum, idx = int(line[:4]), int(line[4:8], 16)
+				bls = line[8:].strip().split(';')
+				for b in bls:
+					p = SplitParam(b, sfrom='(')
+					assert(len(p) == 3)
+					ntxfonts[cdnum][idx].append((int(p[0], 16), int(p[1], 16), int(p[2], 16)))
+
 	for i, fi in enumerate(fcs):
 		lns = fi[1]
 		saved_hyptxt = []
+		saved_textfont = []
 		for k in range(len(lns)):
 			if lns[k].startswith('0x46_'):
 				p = SplitParam(lns[k].partition('#')[0].partition('//')[0], sfrom = ':')
 				assert(len(p) == 6)
 				saved_hyptxt.append((k, p))
+			if lns[k].startswith('0x49_'):
+				p = SplitParam(lns[k].partition('#')[0].partition('//')[0], sfrom = ':')
+				assert(len(p) == 6)
+				saved_textfont.append((k, p))
 			if lns[k].startswith('0x40_') or lns[k].startswith('0x41_'):
 				p = SplitParam(lns[k].partition('#')[0].partition('//')[0], sfrom = ':')
 				assert(len(p) >= 6)
@@ -97,6 +116,13 @@ def TextImp(dp: str, enc: str, outfile: str):
 							lns[saved_thyptxt[0]] = lns[saved_thyptxt[0]].partition(':')[0] + ': ({},{},{},{},{},{})'.format(
 								*map(hex, nhyptxtt), *saved_thyptxt[1][3:])
 					saved_hyptxt = []
+				if saved_textfont:
+					if idx in ntxfonts[i]:
+						assert(len(saved_textfont) == len(ntxfonts[i][idx]))
+						for saved_tfont, tfont in zip(saved_textfont, ntxfonts[i][idx]):
+							lns[saved_tfont[0]] = lns[saved_tfont[0]].partition(':')[0] + ': ({},{},{}, {}, {}, {})'.format(
+								*map(hex, tfont), *saved_tfont[1][3:])
+					saved_textfont = []
 				if idx in txts[i]:
 					lns[k] = lns[k].partition(':')[0] + (': {}, ({},'+'{},'*len(txts[i][idx])+'{},{},{})').format(
 						hex(txts[i][idx][0]), p[1], *txts[i][idx][1], *txts[i][idx][2])
@@ -109,6 +135,7 @@ def TextImp(dp: str, enc: str, outfile: str):
 				# strip text ruby
 				lns[k] = '#' + lns[k]
 		assert(not saved_hyptxt)
+		assert(not saved_textfont)
 		# dry run? or replace
 		with open(os.path.join(dp, fi[0]), 'w', encoding=enc) as f:
 			f.write('\n'.join(lns))

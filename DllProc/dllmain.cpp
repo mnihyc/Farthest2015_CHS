@@ -115,7 +115,7 @@ HWND WINAPI myCreateWindowExA(
 {
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	if (lpClassName == lpWindowName)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1.1 (2025.07.03)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1.3.1 (2025.07.22)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	return CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
@@ -211,12 +211,12 @@ HFONT WINAPI myCreateFontA(
 	if (simple_hash(pszFaceName) == 0x8eabf25c)
 	{
 		// ＭＳ ゴシック
-		pszFaceName = "\xCB\xCE\xCC\xE5"; // GBK 宋体
+		pszFaceName = "SimHei";
 	}
 	if (simple_hash(pszFaceName) == 0xb7319fef)
 	{
 		// ＭＳ Ｐゴシック
-		pszFaceName = "\xBA\xDA\xCC\xE5"; // GBK 黑体
+		pszFaceName = "SimHei";
 	}
 	HFONT ret = CFA(cHeight, cWidth, cEscapement, cOrientation, cWeight, bItalic, bUnderline, bStrikeOut, iCharSet, iOutPrecision, iClipPrecision, iQuality, iPitchAndFamily, pszFaceName);
 	return ret;
@@ -256,7 +256,26 @@ DWORD WINAPI myGetGlyphOutlineA(HDC hdc, UINT uChar, UINT fuFormat, LPGLYPHMETRI
 	}
 	char uchar[] = { (uChar >> 8) & 0xFF, uChar & 0xFF }; // why is this reversed? anyway, it is working like this.
 	wstring wch = MBTWS(uchar, 936);
-	if (wch[0] == L'\u9f1d') wch = L"♪";
+	if (wch[0] == L'\u9f1d')
+	{
+		wch = L"♪";
+		HFONT hOrig = static_cast<HFONT>(GetCurrentObject(hdc, OBJ_FONT));
+		LOGFONTW lf{};
+		if (!GetObjectW(hOrig, sizeof(lf), &lf))
+			dbg.FatalPopup(L"GetObjectW failed in GetGlyphOutlineA");
+		wcsncpy_s(lf.lfFaceName, L"MS Gothic", _TRUNCATE);
+		HFONT hNewFont = CreateFontIndirectW(&lf);
+		if (hNewFont == NULL)
+		{
+			dbg.FatalPopup(L"CreateFontIndirectW failed in GetGlyphOutlineA");
+			return GGOA(hdc, uChar, fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);
+		}
+		HFONT hOldFont = static_cast<HFONT>(SelectObject(hdc, hNewFont));
+		DWORD ret = GetGlyphOutlineW(hdc, wch[0], fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);
+		SelectObject(hdc, hOldFont);
+		DeleteObject(hNewFont); // delete the new font
+		return ret;
+	}
 	return GetGlyphOutlineW(hdc, wch[0], fuFormat, lpgm, cjBuffer, pvBuffer, lpmat2);
 }
 
@@ -404,8 +423,8 @@ __declspec(naked) char __cdecl orgsub_4BAA10(DWORD* a1)
 }
 char __stdcall mysub_4BAA10(DWORD* a1)
 {
-	LogCurInst();
 	char ret = orgsub_4BAA10(a1);
+	LogCurInst();
 	return ret;
 }
 __declspec(naked) char __cdecl sub_4BAA10()
@@ -789,16 +808,17 @@ namespace DbgWindow
 	static constexpr LPCWSTR kFontFace = L"Segoe UI";
 	static constexpr int     kPtMin = 6;
 	static constexpr int     kPtMax = 120;      // allow very large for 4K scaling
+	static int currentPt = 0;  // store current font size in points
 	static HINSTANCE      g_hInst = GetModuleHandleW(nullptr);
 	static HWND           g_hWnd = nullptr;
-	static HWND           g_hLabel = nullptr;
+	//static HWND           g_hLabel = nullptr;
 	static HFONT          g_hFont = nullptr;   // currently selected font
-	static std::wstring   g_text;              // current UTF‑16 text
-	static std::wstring   g_caption;           // current UTF‑16 caption
+	static std::wstring   g_text = L"Wait Until Scenario ......\n";
+	static std::wstring   g_caption = L"Debug Window";
 	static std::mutex     g_stateMutex;        // protects caption/text swaps
 
 	HHOOK g_kbHook = nullptr;
-	static void start_window(const char* caption_utf8, const char* text_utf8);
+	static void start_window(const wstring& caption, const wstring& text);
 
 	static std::deque<std::wstring> g_hist;   // previously rendered texts
 	static int g_prevIdx = 0;
@@ -869,7 +889,6 @@ namespace DbgWindow
 		}
 
 		// (Re)build font if size changed ----------------------------------------
-		static int currentPt = 0;
 		if (best != currentPt)
 		{
 			currentPt = best;
@@ -917,12 +936,20 @@ namespace DbgWindow
 		{
 		case WM_CREATE:
 		{
-			g_hLabel = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP,
-				0, 0, 0, 0, hWnd, nullptr, g_hInst, nullptr);
-			SetWindowTextW(g_hLabel, g_text.c_str());
+			//g_hLabel = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP,
+			//	0, 0, 0, 0, hWnd, nullptr, g_hInst, nullptr);
+			//SetWindowTextW(g_hLabel, g_text.c_str());
 			AdjustFontToFit();
 			return 0;
 		}
+
+		case WM_SHOWWINDOW:
+			if (wParam && g_hWnd)
+			{
+				AdjustFontToFit();
+				InvalidateRect(g_hWnd, nullptr, TRUE);
+			}
+			return 0;
 
 		case WM_SIZE:
 			AdjustFontToFit();
@@ -945,11 +972,11 @@ namespace DbgWindow
 			else
 				break;
 
-			if (g_hist.size() && g_hWnd && g_hLabel)
+			if (g_hist.size() && g_hWnd)
 			{
 				g_text = g_hist[g_prevIdx];
 
-				SetWindowTextW(g_hLabel, g_text.c_str());
+				//SetWindowTextW(g_hLabel, g_text.c_str());
 				AdjustFontToFit();
 
 				SetWindowTextW(g_hWnd, (g_caption + L" / prev+" + std::to_wstring(g_prevIdx)).c_str());
@@ -970,7 +997,7 @@ namespace DbgWindow
 			break;*/
 
 		case WM_DESTROY:
-			if (g_hFont) { DeleteObject(g_hFont); g_hFont = nullptr; }
+			if (g_hFont) { DeleteObject(g_hFont); g_hFont = nullptr; currentPt = 0; }
 			PostQuitMessage(0);
 			return 0;
 		}
@@ -1011,8 +1038,6 @@ namespace DbgWindow
 
 		ShowWindow(g_hWnd, SW_SHOWNOACTIVATE);
 		UpdateWindow(g_hWnd);
-		AdjustFontToFit();
-		InvalidateRect(g_hWnd, nullptr, TRUE);
 
 		// Standard message loop
 		MSG msg;
@@ -1023,6 +1048,7 @@ namespace DbgWindow
 		}
 
 		g_hWnd = nullptr;
+		UnregisterClassW(kClass, g_hInst); // cleanup class registration
 		_endthreadex(0);
 		return 0;
 	}
@@ -1044,8 +1070,7 @@ namespace DbgWindow
 				// Reopen or restart debug window
 				if (!g_hWnd)
 				{
-					start_window("Debug Window", "Wait Until Scenario ......\n");
-					Sleep(100);
+					start_window(g_caption, g_text);
 				}
 				else
 				{
@@ -1063,17 +1088,19 @@ namespace DbgWindow
 	// Public API — call from outside code.
 	// Creates/updates the window on demand.
 	// ----------------------------------------------------------
-	static void start_window(const char* caption_utf8, const char* text_utf8)
+	static void start_window(const wstring& caption, const wstring& text)
 	{
 		std::lock_guard lg(g_stateMutex);
 
-		g_caption = Utf8ToUtf16(caption_utf8);
-		g_text = Utf8ToUtf16(text_utf8);
+		//g_caption = Utf8ToUtf16(caption_utf8);
+		//g_text = Utf8ToUtf16(text_utf8);
+		g_caption = caption;
+		g_text = text;
 
 		if (g_hWnd) // already up — just update caption/text
 		{
 			SetWindowTextW(g_hWnd, g_caption.c_str());
-			SetWindowTextW(g_hLabel, g_text.c_str());
+			//SetWindowTextW(g_hLabel, g_text.c_str());
 			ShowWindow(g_hWnd, SW_SHOWNOACTIVATE); // ensure visible
 			AdjustFontToFit();
 			InvalidateRect(g_hWnd, nullptr, TRUE);
@@ -1085,7 +1112,7 @@ namespace DbgWindow
 	}
 
 	// Optional helpers ----------------------------------------------------------
-	static void update_caption(wstring _caption)
+	static void update_caption(const wstring& _caption)
 	{
 		std::lock_guard lg(g_stateMutex);
 		//g_caption = Utf8ToUtf16(caption_utf8);
@@ -1093,7 +1120,7 @@ namespace DbgWindow
 		if (g_hWnd) SetWindowTextW(g_hWnd, g_caption.c_str());
 	}
 
-	static void update_text(wstring _text)
+	static void update_text(const wstring& _text)
 	{
 		std::lock_guard lg(g_stateMutex);
 		//g_text = Utf8ToUtf16(text_utf8);
@@ -1109,15 +1136,14 @@ namespace DbgWindow
 		{
 			g_stateMutex.unlock();
 			// window closed? reopen
-			start_window("Debug Window", "...");
-			Sleep(100);
+			start_window(g_caption, g_text);
 			g_stateMutex.lock();
 		}
 #endif
 
-		if (g_hWnd && g_hLabel)
+		if (g_hWnd)
 		{
-			SetWindowTextW(g_hLabel, g_text.c_str());
+			//SetWindowTextW(g_hLabel, g_text.c_str());
 			AdjustFontToFit();
 			// always repaint
 			InvalidateRect(g_hWnd, nullptr, TRUE);
@@ -1198,15 +1224,20 @@ void MainProc()
 	DWORD base = (DWORD) GetModuleHandleA(NULL);
 	bool suc = true;
 	
-	// patch font validation
-	const BYTE _PFont1[] = { "\xCB\xCE\xCC\xE5" }; // GBK 宋体
+	// patch font validation (deprecated)
+	/*const BYTE _PFont1[] = {"\xCB\xCE\xCC\xE5"}; // GBK 宋体
 	suc = HOOK::patch(base + 0xFA874, (BYTE)0, 0xD) && HOOK::patch(base + 0xFA874, _PFont1, sizeof(_PFont1));
 	suc &= HOOK::patch(base + 0xFA998, (BYTE)0x86, 0x1); // GB2312_CHARSET
 	const BYTE _PFont2[] = { "\xBA\xDA\xCC\xE5" }; // GBK 黑体
 	suc &= HOOK::patch(base + 0xFA9A4, (BYTE)0, 0xF) && HOOK::patch(base + 0xFA9A4, _PFont2, sizeof(_PFont2));
 	suc &= HOOK::patch(base + 0xFAAC8, (BYTE)0x86, 0x1); // GB2312_CHARSET
 	if (!suc)
-		dbg.FatalPopup(L"Unable to patch unk_4FA870");
+		dbg.FatalPopup(L"Unable to patch unk_4FA870");*/
+
+	// load custom font (deprecated)
+	/*suc = AddFontResourceExW(L".\\LXGWWenKai-Regular.ttf", FR_PRIVATE, NULL);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to load custom font LXGWWenKai-Regular.ttf");*/
 
 	// patch font validation mbscmp()
 	suc = HOOK::patch(base + 0x87E52, (BYTE)0xEB, 0x1);
@@ -1417,7 +1448,7 @@ invalid:
 	}
 
 #ifndef RELEASE
-	DbgWindow::start_window("Debug Window", "Wait Until Scenario ......\n");
+	DbgWindow::start_window(L"Debug Window", L"Wait Until Scenario ......\n");
 #endif
 	DbgWindow::install_hook();
 }

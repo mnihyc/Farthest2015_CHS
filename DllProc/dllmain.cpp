@@ -115,7 +115,7 @@ HWND WINAPI myCreateWindowExA(
 {
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	if (lpClassName == lpWindowName)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1.3.1 (2025.07.22)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1.4 (2025.08.04)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	return CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
@@ -339,7 +339,7 @@ __declspec(naked) char __cdecl orgsub_475E90(DWORD* a1, DWORD* a2, int a3)
 		mov edi, a2
 		mov eax, a1
 		call ecx
-		; add esp, 0x4
+		; //add esp, 0x4
 		leave
 		ret
 	}
@@ -437,6 +437,59 @@ __declspec(naked) char __cdecl sub_4BAA10()
 		call mysub_4BAA10
 		leave
 		ret
+	}
+}
+
+// backlog text stripping (fix original bug) in sub_420F10
+HOOKJMP hkinst_421009;
+int __stdcall myinst_421009(unsigned char* buf, unsigned line)
+{
+	unsigned pos = 0;
+	while (pos < line)
+		pos += 1 + static_cast<unsigned>(IsDBCSLeadByte(buf[pos]));
+	if (pos > line)
+		return 1;
+	if (pos == line)
+		return 0;
+	dbg.FatalPopup(L"myinst_421009: line number mismatch");
+}
+__declspec(naked) char __cdecl inst_421009()
+{
+	__asm
+	{
+		pop ecx; //strip arguments
+
+		push ebp
+		mov ebp, esp
+		push ebx
+		push edx
+		push edi
+		push esi; //save registers
+
+		sub eax, edi
+		add eax, ebx
+		add eax, 0x4; //start offset of buffer
+
+		push edi; //length
+		push eax; //buffer
+		call myinst_421009
+		push eax; //eax = return value
+
+		lea ecx, hkinst_421009
+		call HOOKJMP::get
+		mov ecx, eax
+		add ecx, 0x6; //skip original code
+		push ecx; //ecx = continue execution address
+
+		pop ecx
+		pop eax
+
+		pop esi
+		pop edi
+		pop edx
+		pop ebx; //restore registers
+		leave
+		jmp ecx; //continue
 	}
 }
 
@@ -1297,6 +1350,9 @@ void MainProc()
 	suc = hksub_4BAA10.hook(sub_4BAA10, (LPVOID)(base + 0xBAA10), 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook sub_4BAA10 MoveNextScenarioInstruction");
+	suc = hkinst_421009.hook(inst_421009, (LPVOID)(base + 0x21009), 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook inst_421009 (in sub_420F10) BacklogTextStrip");
 	
 
 	suc = hkRoundKey.hook(gdRoundKey, (LPVOID)(base + 0xA7BE0), 8);

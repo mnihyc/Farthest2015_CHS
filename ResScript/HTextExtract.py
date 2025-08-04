@@ -4,7 +4,6 @@ from typing import Dict, List, Tuple
 from collections import defaultdict
 
 # NOTE: character "," can not be in texts
-# NOTE: text can not be too long; otherwise stack overflow
 
 def TextExp(dp: str, enc: str, outfile: str):
 	fcs = LoadFCS(dp, enc)

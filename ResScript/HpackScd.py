@@ -128,7 +128,9 @@ def InstWrapSub413350(a, cs, trd, **kwargs):
 
 
 '''
-	Instructions extracted
+	Instructions extracted (moved by 3 * sizeof(int) = 12 bytes)
+	0  1 | 2  3 | 4  5  6  7 | 8  9  A  B
+	Inst | Int* |   Offset*  |   Data*
 '''
 # N N N / N
 def InstNone(**kwargs):
@@ -1333,17 +1335,19 @@ def InstEffBustUp(**kwargs):
 			p = p[38:]
 		return cs.pack('<HII', cnt, off, 0)
 	
-# N BN N / N
-def InstNBNN(**kwargs):
+# BN N N / N
+def InstBNNN(**kwargs):
 	cs = kwargs['cs']
 	if 's' not in kwargs.keys():
-		_, a, _, _, _, _ = cs.unpack('<HB3BI')
+		# how believe I could mess this up?
+		# mov cl, [ecx+2] is the third byte
+		a, _, _, _ = cs.unpack('<BBII')
 		return '{}'.format(hex(a))
 	else:
 		s = kwargs['s']
 		p = [k.strip() for k in s.split(',')]
 		a = int(p[0],16)
-		return cs.pack('<HB3BI', 0, a, *[0,]*3, 0)
+		return cs.pack('<BBII', a, *[0,]*3)
 
 inst = {
 	0x00: ('0x00_Pass', InstNone),
@@ -1499,7 +1503,7 @@ inst = {
 	0x96: ('0x96_U_Menu', InstNone),
 	0x97: ('0x97_PlayMovie', InstNWWN),
 	0x98: False,
-	0x99: ('0x99_U_SGlobByte', InstNBNN),
+	0x99: ('0x99_SetPGlobByte', InstBNNN),
 	0x9A: ('0x9A_U_ScrTPRecv', InstNone),
 	0x9B: ('0x9B_U_SelGirlVar', InstWWNN),
 	0x9C: ('0x9C_U_SetRndGVar', InstNone),

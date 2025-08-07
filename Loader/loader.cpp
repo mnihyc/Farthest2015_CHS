@@ -12,7 +12,7 @@
 #define ORIG_EXEHASH 0x629dee55cadf29c0
 
 // global debug
-DEBUG dbg{ L"Loader", L"P:/Projects/Farthest2015_CHS/Release/d_loader.txt", true};
+DEBUG dbg{ L"Loader", L"" };
 
 // for easier coding
 using std::wstring;
@@ -53,13 +53,34 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
 void MainProc()
 {
-	// remember to delete
-	SetCurrentDirectory(L"P:/Projects/Farthest2015_CHS/Release/");
-	
+	WCHAR exePath[MAX_PATH];
+	if (GetModuleFileNameW(NULL, exePath, MAX_PATH) == 0)
+		dbg.FatalPopup(L"GetModuleFileNameW() failed");
+	WCHAR* lastBackslash = wcsrchr(exePath, L'\\');
+	if (lastBackslash)
+		*lastBackslash = L'\0';
+	if (!SetCurrentDirectoryW(exePath))
+		dbg.FatalPopup(L"SetCurrentDirectoryW() failed");
+
+	LPVOID lpBuffer{}; DWORD dwLength;
+	if ((dwLength = LReadFileToBuf(L"HD\\gd.arc", lpBuffer)) == 0)
+	{
+		dbg.FatalPopup(L"Please put this file into your Farthest2015 installation path!");
+		return;
+	}
+	if (LBuffHash(lpBuffer, dwLength) != 0xc655c64a2457fefa)
+	{
+		dbg.FatalPopup(L"Only Farthest2015 COMPLETE version is supported!");
+		return;
+	}
+	delete[] lpBuffer; lpBuffer = nullptr; dwLength = 0;
+
 	STARTUPINFO sii = { 0 }; sii.cb = sizeof(STARTUPINFO);
 	PROCESS_INFORMATION pii = { 0 };
-	if (!CreateProcess(EXE_FILENAME, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &sii, &pii))
+	if (!CreateProcessW(EXE_FILENAME, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &sii, &pii))
 		dbg.FatalPopup(L"Unable to create process " + wstring(EXE_FILENAME));
+	CloseHandle(pii.hProcess);
+	CloseHandle(pii.hThread);
 	return;
 	
 /*

@@ -34,6 +34,7 @@ if __name__=='__main__':
 			'\uff9d': '\u30f3', # ﾝ -> ン
 			'\uff9e': '\u309b', # ﾞ -> ゛
 			'\uff9f': '\u309c', # ﾟ -> ﾟ
+			'\u200c': '', # zero width
 		}
 		for rf, rt in rep.items():
 			if rf in s:

@@ -115,7 +115,7 @@ HWND WINAPI myCreateWindowExA(
 {
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	if (lpClassName == lpWindowName)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1.5 (2025.08.07)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1.7 (2025.10.07)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	return CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
@@ -1270,10 +1270,68 @@ void LogCurInst()
 	DbgWindow::update_caption(tmp);
 }
 
+bool CheckLoader()
+{
+	WCHAR exePath[MAX_PATH];
+	if (GetModuleFileNameW(NULL, exePath, MAX_PATH) == 0)
+	{
+		dbg.FatalPopup(L"GetModuleFileNameW() failed");
+		return false;
+	}
+	WCHAR* lastBackslash = wcsrchr(exePath, L'\\');
+	if (lastBackslash)
+		*lastBackslash = L'\0';
+	if (!SetCurrentDirectoryW(exePath))
+	{
+		dbg.FatalPopup(L"SetCurrentDirectoryW() failed");
+		return false;
+	}
 
+	auto LReadFileToBuf = [](const wstring& path, void*& buf) -> DWORD
+	{
+		HANDLE hFile = CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hFile == INVALID_HANDLE_VALUE)
+			return 0;
+		DWORD dwSize = GetFileSize(hFile, NULL);
+		if (dwSize == INVALID_FILE_SIZE)
+			return 0;
+		buf = new char[dwSize];
+		DWORD dwRead;
+		if (!ReadFile(hFile, buf, dwSize, &dwRead, NULL))
+			return 0;
+		CloseHandle(hFile);
+		return (dwSize == dwRead ? dwSize : 0);
+	};
+
+	auto LBuffHash = [](const void* buf, int len) -> __int64
+	{
+		__int64 hash = 0;
+		for (int i = 0; i < len; i++)
+			hash = (hash << 5) + hash + ((unsigned char*)buf)[i];
+		return hash;
+	};
+
+	LPVOID lpBuffer{}; DWORD dwLength;
+	if ((dwLength = LReadFileToBuf(L"HD\\gd.arc", lpBuffer)) == 0)
+	{
+		dbg.FatalPopup(L"Put this file into the Farthest2015 installation path!");
+		return false;
+	}
+	if (LBuffHash(lpBuffer, dwLength) != 0xc655c64a2457fefa)
+	{
+		dbg.FatalPopup(L"Only Farthest2015 COMPLETE version is supported!");
+		return false;
+	}
+	delete[] lpBuffer; lpBuffer = nullptr; dwLength = 0;
+
+	return true;
+}
 
 void MainProc()
 {
+	if (!CheckLoader())
+		ExitProcess(0);
+
 	DWORD base = (DWORD) GetModuleHandleA(NULL);
 	bool suc = true;
 	
@@ -1379,7 +1437,7 @@ void MainProc()
 	{
 		// list all .png files in the chs folder
 		WIN32_FIND_DATAW findData;
-		HANDLE hFind = FindFirstFileW(L".\\chs\\*.png", &findData);
+		HANDLE hFind = FindFirstFileW(L".\\chs\\pics\\*.png", &findData);
 		if (hFind != INVALID_HANDLE_VALUE)
 		{
 			do
@@ -1387,7 +1445,7 @@ void MainProc()
 				wstring filename = findData.cFileName;
 				if (filename.size() > 4 && filename.substr(filename.size() - 4) == L".png")
 				{
-					wstring fullpath = L".\\chs\\" + filename;
+					wstring fullpath = L".\\chs\\pics\\" + filename;
 					HANDLE file = CreateFileW(fullpath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 					if (file != INVALID_HANDLE_VALUE)
 					{

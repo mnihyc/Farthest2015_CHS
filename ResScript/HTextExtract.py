@@ -30,7 +30,7 @@ def TextExp(dp: str, enc: str, outfile: str):
 def TextImp(dp: str, enc: str, outfile: str):
 	fcs = LoadFCS(dp, enc)
 	with open(outfile, 'r', encoding=enc) as f:
-		lines = [line.strip() for line in f.readlines()]
+		lines = [line.strip(' \t\r\n') for line in f.readlines()]
 	blks = '\n'.join(lines).split('\n\n')
 	txts: Dict[int, Dict[int, Tuple[int, List[str], Tuple[int, int, int]]]] = [{} for _ in range(len(fcs))]
 	ntxts: Dict[int, Dict[int, Tuple[str]]] = [{} for _ in range(len(fcs))]

@@ -337,7 +337,9 @@ def InstShowText(**kwargs):
 		p = [k.strip().strip('()[]').strip() for k in s.split(',')]
 		a0, idx = int(p[0],16), int(p[1],16)
 		c,b,a = int(p[-1],16),int(p[-2],16),int(p[-3],16)
-		res =[k[k.find('"')+1 : k.rfind('"')].encode(enc) for k in p[2:-3]]
+		res =[k[k.find('"')+1 : k.rfind('"')] for k in p[2:-3]]
+		# handle specially for , and " in texts (rare characters, HTextExtract.py)
+		res = [t.replace('\ufa1f',',').replace('\ufa20','"').encode(enc) for t in res]
 		off0 = trd.pos
 		trd.pack('<IIII', a, 8+sum([len(p)+4 for p in res]), idx, len(res))
 		for p in res:

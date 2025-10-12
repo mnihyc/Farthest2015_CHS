@@ -49,6 +49,7 @@ def TextImp(dp: str, enc: str, outfile: str):
 			else:
 				t.extend(line[1 : -3])
 			txts[int(p[0].partition('.')[0].strip())][int(p[1], 16)] = [cn, t, p[-3:]]
+			raise NotImplementedError('old format is deprecated. comment out this line to proceed if you know what you gonna do.')
 		elif line[0][:4] == '□□□□' or line[0][:4] == '■■■■':
 			line = list(filter(lambda t: not t.startswith('□□□□') and t, line))
 			assert(all(t.startswith('■■■■') for t in line))
@@ -130,6 +131,8 @@ def TextImp(dp: str, enc: str, outfile: str):
 					assert(len(texts) == len(res))
 					while len(texts) > 0 and texts[-1] == '':
 						texts.pop()
+					# handle specially for , and " in texts (rare characters)
+					texts = [t.replace(',','\ufa1f').replace('"','\ufa20') for t in texts]
 					lns[k] = lns[k].partition(':')[0] + (': {}, ({},'+'"{}",'*len(texts)+'{},{},{})').format(
 						p[0], p[1], *texts, p[-3], p[-2], p[-1])
 			if lns[k].startswith('0x44_'):

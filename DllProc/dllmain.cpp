@@ -18,14 +18,14 @@
 #pragma comment(lib, "Shlwapi.lib")
 
 // switch release mode?
-#undef RELEASE
+#define RELEASE
 
 // global debug
 #ifdef RELEASE
 DEBUG dbg{ L"DllProc", L"", false, true };
 #else
-//DEBUG dbg{ L"DllProc", L"d_dllproc.txt", false, true };
-DEBUG dbg{ L"DllProc", L"", false, true };
+DEBUG dbg{ L"DllProc", L"d_dllproc.txt", false, true };
+//DEBUG dbg{ L"DllProc", L"", false, true };
 #endif
 
 // for easier coding
@@ -34,9 +34,9 @@ using std::wstring;
 // main procedure
 void MainProc();
 // convert multi-byte to wstring
-wstring MBTWS(const char* str, int page=932);
+wstring MBTWS(const char* str, int page=CP_ACP);
 // convert wstring to multi-byte
-char* WSTMB(const wstring& str, int page=936);
+char* WSTMB(const wstring& str, int page=CP_ACP);
 
 // png replacement table
 std::unordered_map<unsigned, std::vector<char>> png_replacement_table;
@@ -115,14 +115,59 @@ HWND WINAPI myCreateWindowExA(
 {
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	if (lpClassName == lpWindowName)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.1.7.1 (2025.10.12)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.2.1 PRE-RELEASE (2025.12.26)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	return CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
 
+// direct virtual file map
+HOOKJMP hkCreateFileW;
+typedef HANDLE(WINAPI* tpCreateFileW)(LPCWSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
+HANDLE WINAPI myCreateFileW(
+	LPCWSTR               lpFileName,
+	DWORD                 dwDesiredAccess,
+	DWORD                 dwShareMode,
+	LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+	DWORD                 dwCreationDisposition,
+	DWORD                 dwFlagsAndAttributes,
+	HANDLE                hTemplateFile
+)
+{
+	if (wcslen(lpFileName) == 0)
+		return INVALID_HANDLE_VALUE;
+	static wchar_t s[1024] = { 0 };
+	wsprintf(s, L"CreateFileW: %s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
+	dbg.Log(s);
+	if (PathFileExistsW(L".\\chs"))
+	{
+		// get basename of lpFileName
+		const wchar_t* baseName = wcsrchr(lpFileName, L'\\');
+		if (baseName == nullptr)
+			baseName = lpFileName; // no path, use full name
+		else
+			baseName++; // skip the backslash
+		// check if file exists in chs folder
+		for (wstring search_path : { L".\\chs\\", L".\\chs\\cd\\" })
+		{
+			wstring chsFilePath = search_path + baseName;
+			if (PathFileExistsW(chsFilePath.c_str()))
+			{
+				// file exists in chs folder, replace it
+				wsprintf(s, L"Using replaced virtual file: %s with original %s", chsFilePath.c_str(), lpFileName);
+				dbg.Log(s);
+				lpFileName = chsFilePath.c_str();
+				break;
+			}
+		}
+	}
+	tpCreateFileW CFW = static_cast<tpCreateFileW>(hkCreateFileW.get());
+	HANDLE ret = CFW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+	return ret;
+}
+
 // perform virtual file map (deprecated)
 HOOKJMP hkCreateFileA;
-typedef HANDLE (WINAPI *tpCreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
+typedef HANDLE(WINAPI* tpCreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
 HANDLE WINAPI myCreateFileA(
 	LPCSTR                lpFileName,
 	DWORD                 dwDesiredAccess,
@@ -135,29 +180,21 @@ HANDLE WINAPI myCreateFileA(
 {
 	if (strlen(lpFileName) == 0)
 		return INVALID_HANDLE_VALUE;
-	static wchar_t s[1024] = {0};
+	static wchar_t s[1024] = { 0 };
 	wsprintf(s, L"CreateFileA: %s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", MBTWS(lpFileName).c_str(), dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
 	dbg.Log(s);
 	if (PathFileExistsW(L".\\chs"))
 	{
-		// get basename of lpFileName
-		const char* baseName = strrchr(lpFileName, '\\');
-		if (baseName == nullptr)
-			baseName = lpFileName; // no path, use full name
-		else
-			baseName++; // skip the backslash
-		// check if file exists in chs folder
-		for (wstring search_path : { L".\\chs\\", L".\\chs\\cd\\" })
-		{
-			wstring chsFilePath = search_path + MBTWS(baseName);
-			if (PathFileExistsW(chsFilePath.c_str()))
-			{
-				// file exists in chs folder, replace it
-				wsprintf(s, L"Using replaced virtual file: %s with original %s", chsFilePath.c_str(), MBTWS(lpFileName).c_str());
-				dbg.Log(s);
-				return CreateFileW(chsFilePath.c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-			}
-		}
+		// load possible replacement
+		return myCreateFileW(
+			MBTWS(lpFileName).c_str(),
+			dwDesiredAccess,
+			dwShareMode,
+			lpSecurityAttributes,
+			dwCreationDisposition,
+			dwFlagsAndAttributes,
+			hTemplateFile
+		);
 	}
 	tpCreateFileA CFA = static_cast<tpCreateFileA>(hkCreateFileA.get());
 	HANDLE ret = CFA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
@@ -1372,6 +1409,9 @@ void MainProc()
 	suc = hkCreateFileA.hook(myCreateFileA, CreateFileA, 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook CreateFileA");
+	suc = hkCreateFileW.hook(myCreateFileW, CreateFileW, 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook CreateFileW");
 	suc = hkSHGetSpecialFolderPathA.hook(mySHGetSpecialFolderPathA, SHGetSpecialFolderPathA, 5);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook SHGetSpecialFolderPathA");
@@ -1429,7 +1469,11 @@ void MainProc()
 	suc = hksub_4AFAC0.hook(sub_4AFAC0, (LPVOID)(base + 0xAFAC0), 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook sub_4AFAC0 Gaf004Loader::png_Read");
-		
+
+	// patch BgmMode button song_20 image size (not irreversible)
+	suc = HOOK::patch(base + 0x1004E0, (BYTE)101, 0x1); // from 86 to 101
+	if (!suc)
+		dbg.FatalPopup(L"Unable to patch hex:5004E3 BgmMode button song_20 image size");
 
 
 	// loading replacement files

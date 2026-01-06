@@ -115,7 +115,7 @@ HWND WINAPI myCreateWindowExA(
 {
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	if (lpClassName == lpWindowName)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.2.1 PRE-RELEASE (2025.12.26)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.2.2 PRE-RELEASE (2026.1.6)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	return CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
@@ -136,7 +136,7 @@ HANDLE WINAPI myCreateFileW(
 	if (wcslen(lpFileName) == 0)
 		return INVALID_HANDLE_VALUE;
 	static wchar_t s[1024] = { 0 };
-	wsprintf(s, L"CreateFileW: %s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
+	wsprintf(s, L"CreateFileW: %600s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
 	dbg.Log(s);
 	if (PathFileExistsW(L".\\chs"))
 	{
@@ -153,7 +153,7 @@ HANDLE WINAPI myCreateFileW(
 			if (PathFileExistsW(chsFilePath.c_str()))
 			{
 				// file exists in chs folder, replace it
-				wsprintf(s, L"Using replaced virtual file: %s with original %s", chsFilePath.c_str(), lpFileName);
+				wsprintf(s, L"Using replaced virtual file: %400s with original %400s", chsFilePath.c_str(), lpFileName);
 				dbg.Log(s);
 				lpFileName = chsFilePath.c_str();
 				break;
@@ -181,7 +181,7 @@ HANDLE WINAPI myCreateFileA(
 	if (strlen(lpFileName) == 0)
 		return INVALID_HANDLE_VALUE;
 	static wchar_t s[1024] = { 0 };
-	wsprintf(s, L"CreateFileA: %s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", MBTWS(lpFileName).c_str(), dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
+	wsprintf(s, L"CreateFileA: %600s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", MBTWS(lpFileName).c_str(), dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
 	dbg.Log(s);
 	if (PathFileExistsW(L".\\chs"))
 	{
@@ -221,6 +221,19 @@ BOOL WINAPI mySHGetSpecialFolderPathA(HWND hwnd, LPSTR pszPath, int csidl, BOOL 
 	if (csidl == CSIDL_MYDOCUMENTS)
 		return pszPath[0]=0;
 	return SHGSPA(hwnd, pszPath, csidl, fCreate);
+}
+
+// hook registry, bypass installation check (No-CD crack)
+HOOKJMP hkRegOpenKeyExA;
+typedef LONG(WINAPI* tpRegOpenKeyExA)(HKEY, LPCSTR, DWORD, REGSAM, PHKEY);
+LONG WINAPI myRegOpenKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, REGSAM samDesired, PHKEY phkResult)
+{
+	tpRegOpenKeyExA ROKEA = static_cast<tpRegOpenKeyExA>(hkRegOpenKeyExA.get());
+	if (strcmp(lpSubKey, "Software\\XUSE_CORP\\Farthest2015") == 0)
+	{
+		return ERROR_FILE_NOT_FOUND;
+	}
+	return ROKEA(hKey, lpSubKey, ulOptions, samDesired, phkResult);
 }
 
 // recognize chinese
@@ -1415,6 +1428,9 @@ void MainProc()
 	suc = hkSHGetSpecialFolderPathA.hook(mySHGetSpecialFolderPathA, SHGetSpecialFolderPathA, 5);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook SHGetSpecialFolderPathA");
+	suc = hkRegOpenKeyExA.hook(myRegOpenKeyExA, RegOpenKeyExA, 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook RegOpenKeyExA");
 	suc = hkOutputDebugStringA.hook(myOutputDebugStringA, OutputDebugStringA, 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook OutputDebugStringA");
@@ -1524,7 +1540,7 @@ invalid:
 								}
 								png_replacement_table[hash] = std::move(data);
 								static wchar_t s[1024];
-								wsprintf(s, L"Loaded PNG replacement: %s (hash: %x)", filename.c_str(), hash);
+								wsprintf(s, L"Loaded PNG replacement: %600s (hash: %x)", filename.c_str(), hash);
 								dbg.Log(s);
 							}
 						}

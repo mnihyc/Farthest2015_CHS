@@ -115,7 +115,7 @@ HWND WINAPI myCreateWindowExA(
 {
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	if (lpClassName == lpWindowName)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.2.2 PRE-RELEASE (2026.1.6)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.2.3 PRE-RELEASE (2026.1.11)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	return CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
@@ -540,6 +540,99 @@ __declspec(naked) char __cdecl inst_421009()
 		pop ebx; //restore registers
 		leave
 		jmp ecx; //continue
+	}
+}
+
+
+// global variable to indicate first clear
+static int g_first_clear = -1;
+// hook ScriptInstruction_0x99_SetPGlobByte to know unlock progress
+HOOKJMP hkinst_478B00;
+void __stdcall myinst_478B00()
+{
+	DWORD base = (DWORD)GetModuleHandleA(NULL);
+	DWORD GCScenario = base + 0x1194C0;
+	DWORD pos = *(DWORD*)(GCScenario + 0x28);
+	BYTE param = *(BYTE*)(pos + 0x2);
+
+	DWORD GlobVar_51EB3C = *(DWORD*)(base + 0x11EB3C);
+
+	static wchar_t s[200] = { 0 };
+	wsprintf(s, L"0x99_SetPGlobByte called with param: 0x%x; prev value=0x%x", param, GlobVar_51EB3C);
+	dbg.Log(s);
+
+	if (param == 0x3)
+	{
+		// only called in 0003.cd
+		g_first_clear = !(GlobVar_51EB3C & (1 << 0x3));
+
+		if (g_first_clear)
+		{
+			// first clear, create indicator file
+			HANDLE hFile = CreateFileW(L".\\隐藏章节提示（无需可删除）.txt", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hFile != INVALID_HANDLE_VALUE)
+			{
+				//// if file is already, skip. Use Ex version to bypass hook.
+				//SetFilePointerEx(hFile, { 0 }, NULL, FILE_END);
+				//LARGE_INTEGER size;
+				//GetFileSizeEx(hFile, &size);
+				//if (size.QuadPart > 0)
+				//{
+				//	CloseHandle(hFile);
+				//	return;
+				//}
+
+				DWORD written = 0;
+				const wchar_t* msg = L"恭喜通关！\r\n\r\n隐藏章节提示：从游戏开头开始，不选任何“链接”循环三次即可解锁隐藏章节。\r\n\r\n感谢您游玩本汉化补丁！";
+				// convert to utf-8
+				const char* utf8msg = WSTMB(msg, CP_UTF8);
+				WriteFile(hFile, utf8msg, (DWORD)strlen(utf8msg), &written, NULL);
+				delete[] utf8msg;
+				CloseHandle(hFile);
+				dbg.Log(L"Game cleared indicator file created.");
+			}
+		}
+	}
+}
+
+__declspec(naked) void __cdecl inst_478B00()
+{
+	__asm
+	{
+		call myinst_478B00
+
+		lea ecx, hkinst_478B00
+		call HOOKJMP::get
+		mov ecx, eax
+		jmp ecx; // jump back to continue
+	}
+}
+
+
+// hook ScriptInstruction_0x96_Unknown_Menu (only called in 0003.cd) to show hint afer game clear
+HOOKJMP hkinst_478330;
+void __stdcall myinst_478330()
+{
+	dbg.Log(L"Game cleared! (in 0x96_U_Menu)");
+
+	if (g_first_clear != 1)
+	{
+		return; // not first clear, do nothing
+	}
+
+	// relocated to previous hook
+}
+
+__declspec(naked) void __cdecl inst_478330()
+{
+	__asm
+	{
+		call myinst_478330
+
+		lea ecx, hkinst_478330
+		call HOOKJMP::get
+		mov ecx, eax
+		jmp ecx; // jump back to continue
 	}
 }
 
@@ -1467,6 +1560,12 @@ void MainProc()
 	suc = hkinst_421009.hook(inst_421009, (LPVOID)(base + 0x21009), 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook inst_421009 (in sub_420F10) BacklogTextStrip");
+	suc = hkinst_478B00.hook(inst_478B00, (LPVOID)(base + 0x78B00), 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook inst_478B00 (in sub_478B00) ScriptInstruction_0x99_SetPGlobByte");
+	suc = hkinst_478330.hook(inst_478330, (LPVOID)(base + 0x78330), 7);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook inst_478330 (in sub_478330) ScriptInstruction_0x96_Unknown_Menu");
 	
 
 	suc = hkRoundKey.hook(gdRoundKey, (LPVOID)(base + 0xA7BE0), 8);

@@ -10,6 +10,7 @@
 #include <vector>
 #include <deque>
 #include <unordered_map>
+#include <unordered_set>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -48,6 +49,88 @@ using Map2D = std::map<std::uint16_t,
 
 static Map2D<std::wstring> jap_map, chs_map;
 static Map2D<std::tuple<int, int, int>> hyp_map;
+
+static HWND g_game_main_hwnd = nullptr;
+
+struct TooltipEntry
+{
+	std::uint16_t cdnum = 0;
+	std::uint16_t text_idx = 0;
+	std::uint16_t line = 0;      // 1-based line index in text block
+	std::uint16_t start = 0;     // 1-based character index
+	std::uint16_t len = 0;       // character length
+	std::wstring tip;    // tooltip content
+};
+static Map2D<TooltipEntry> tip_map;
+static std::unordered_set<const TooltipEntry*> g_tip_entry_ptrs;
+
+struct TooltipStateKey
+{
+	std::uint16_t cdnum = 0;
+	std::uint16_t text_idx = 0;
+	std::uint16_t line = 0;
+	std::uint16_t start = 0;
+	std::uint16_t len = 0;
+
+	bool operator==(const TooltipStateKey& rhs) const
+	{
+		return cdnum == rhs.cdnum &&
+			text_idx == rhs.text_idx &&
+			line == rhs.line &&
+			start == rhs.start &&
+			len == rhs.len;
+	}
+};
+
+struct TooltipStateKeyHash
+{
+	std::size_t operator()(const TooltipStateKey& k) const noexcept
+	{
+		std::size_t h = static_cast<std::size_t>(2166136261u);
+		h = (h ^ k.cdnum) * static_cast<std::size_t>(16777619u);
+		h = (h ^ k.text_idx) * static_cast<std::size_t>(16777619u);
+		h = (h ^ k.line) * static_cast<std::size_t>(16777619u);
+		h = (h ^ k.start) * static_cast<std::size_t>(16777619u);
+		h = (h ^ k.len) * static_cast<std::size_t>(16777619u);
+		return h;
+	}
+};
+
+static TooltipStateKey MakeTooltipStateKey(const TooltipEntry* tip)
+{
+	TooltipStateKey key{};
+	if (!tip)
+		return key;
+	key.cdnum = tip->cdnum;
+	key.text_idx = tip->text_idx;
+	key.line = tip->line;
+	key.start = tip->start;
+	key.len = tip->len;
+	return key;
+}
+
+static void RebuildTooltipEntryPointerIndex()
+{
+	g_tip_entry_ptrs.clear();
+	for (const auto& cd_pair : tip_map)
+	{
+		for (const auto& idx_pair : cd_pair.second)
+		{
+			for (const auto& tip : idx_pair.second)
+				g_tip_entry_ptrs.insert(&tip);
+		}
+	}
+}
+
+// current text identity tracked from LogCurText: hi=cdnum, lo=text_idx
+static volatile LONG g_cur_text_key = -1;
+static std::unordered_map<DWORD, LONG> g_tooltip_registered_key_by_field;
+
+static inline LONG PackTextKey(std::uint16_t cdnum, std::uint16_t text_idx)
+{
+	return (static_cast<LONG>(cdnum) << 16) | static_cast<LONG>(text_idx);
+}
+
 
 
 extern "C" int __declspec(dllexport) a1()
@@ -114,9 +197,13 @@ HWND WINAPI myCreateWindowExA(
 	LPVOID lpParam)
 {
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
-	if (lpClassName == lpWindowName)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.2.3 PRE-RELEASE (2026.1.11)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
-	return CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+	const bool probable_main_window = (lpClassName == lpWindowName);
+	if (probable_main_window)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.0 PRE-RELEASE (2026.3.5)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+	HWND ret = CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+	if (ret && probable_main_window)
+		g_game_main_hwnd = ret;
+	return ret;
 }
 
 
@@ -136,7 +223,7 @@ HANDLE WINAPI myCreateFileW(
 	if (wcslen(lpFileName) == 0)
 		return INVALID_HANDLE_VALUE;
 	static wchar_t s[1024] = { 0 };
-	wsprintf(s, L"CreateFileW: %600s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
+	wsprintf(s, L"CreateFileW: %.600s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
 	dbg.Log(s);
 	if (PathFileExistsW(L".\\chs"))
 	{
@@ -153,7 +240,7 @@ HANDLE WINAPI myCreateFileW(
 			if (PathFileExistsW(chsFilePath.c_str()))
 			{
 				// file exists in chs folder, replace it
-				wsprintf(s, L"Using replaced virtual file: %400s with original %400s", chsFilePath.c_str(), lpFileName);
+				wsprintf(s, L"Using replaced virtual file: %.400s with original %.400s", chsFilePath.c_str(), lpFileName);
 				dbg.Log(s);
 				lpFileName = chsFilePath.c_str();
 				break;
@@ -181,7 +268,7 @@ HANDLE WINAPI myCreateFileA(
 	if (strlen(lpFileName) == 0)
 		return INVALID_HANDLE_VALUE;
 	static wchar_t s[1024] = { 0 };
-	wsprintf(s, L"CreateFileA: %600s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", MBTWS(lpFileName).c_str(), dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
+	wsprintf(s, L"CreateFileA: %.600s, access: 0x%x, share: 0x%x, disp: 0x%x, attr: 0x%x", MBTWS(lpFileName).c_str(), dwDesiredAccess, dwShareMode, dwCreationDisposition, dwFlagsAndAttributes);
 	dbg.Log(s);
 	if (PathFileExistsW(L".\\chs"))
 	{
@@ -971,6 +1058,821 @@ __declspec(naked) int __cdecl sub_4AFAC0(LPVOID buf, DWORD num, int u2, DWORD* a
 }
 
 
+// ---------------------------------------------------------------------------
+// Tooltip keywords: register custom button regions per text index and handle
+// hover/click timeout behavior without entering scenario jump flow.
+// ---------------------------------------------------------------------------
+namespace TooltipPopup
+{
+	static HWND g_hwnd = nullptr;
+	static HFONT g_font = nullptr;
+	static std::wstring g_text;
+	static const TooltipEntry* g_src = nullptr;
+	static std::unordered_set<TooltipStateKey, TooltipStateKeyHash> g_viewed_keys;
+	static RECT g_last_host_bounds{};
+	static bool g_have_last_host_bounds = false;
+
+	static void Hide()
+	{
+		if (!g_hwnd) return;
+		ShowWindow(g_hwnd, SW_HIDE);
+		g_src = nullptr;
+	}
+
+	static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	{
+		(void)wParam;
+		(void)lParam;
+		switch (msg)
+		{
+		case WM_MOUSEACTIVATE:
+			return MA_NOACTIVATE;
+		case WM_NCHITTEST:
+			// Pass all mouse hit-tests through so tooltip never captures clicks/focus.
+			return HTTRANSPARENT;
+		case WM_PAINT:
+		{
+			PAINTSTRUCT ps{};
+			HDC hdc = BeginPaint(hWnd, &ps);
+			RECT rc{};
+			GetClientRect(hWnd, &rc);
+			HBRUSH bg = CreateSolidBrush(RGB(255, 255, 225));
+			FillRect(hdc, &rc, bg);
+			DeleteObject(bg);
+			FrameRect(hdc, &rc, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+			if (g_font)
+				SelectObject(hdc, g_font);
+			SetBkMode(hdc, TRANSPARENT);
+			rc.left += 8; rc.top += 6; rc.right -= 8; rc.bottom -= 6;
+			DrawTextW(hdc, g_text.c_str(), static_cast<int>(g_text.size()), &rc,
+				DT_LEFT | DT_TOP | DT_NOPREFIX | DT_WORDBREAK);
+			EndPaint(hWnd, &ps);
+			return 0;
+		}
+		}
+		return DefWindowProcW(hWnd, msg, wParam, lParam);
+	}
+
+	static bool EnsureWindow()
+	{
+		if (g_hwnd) return true;
+		static constexpr LPCWSTR kClass = L"FarthestTooltipPopupCls";
+		WNDCLASSW wc{};
+		wc.hInstance = GetModuleHandleW(nullptr);
+		wc.lpfnWndProc = WndProc;
+		wc.lpszClassName = kClass;
+		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
+		RegisterClassW(&wc);
+		g_hwnd = CreateWindowExW(
+			WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+			kClass,
+			L"",
+			WS_POPUP,
+			0, 0, 10, 10,
+			nullptr, nullptr, GetModuleHandleW(nullptr), nullptr
+		);
+		if (!g_hwnd)
+			return false;
+		if (!g_font)
+		{
+			g_font = CreateFontW(
+				-16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+				DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
+				CLEARTYPE_QUALITY, VARIABLE_PITCH | FF_DONTCARE, L"Segoe UI");
+		}
+		return true;
+	}
+
+	static int ClampInt(int v, int lo, int hi)
+	{
+		return (v < lo) ? lo : ((v > hi) ? hi : v);
+	}
+
+	static void Show(const TooltipEntry* src, const std::wstring& text)
+	{
+		if (!src || text.empty())
+			return;
+		if (!EnsureWindow())
+			return;
+
+		const bool was_visible = (IsWindowVisible(g_hwnd) != FALSE);
+		const bool content_changed = (g_src != src) || (g_text != text);
+
+		g_src = src;
+		if (content_changed)
+			g_text = text;
+
+		POINT pt{};
+		GetCursorPos(&pt);
+		MONITORINFO mi{};
+		mi.cbSize = sizeof(mi);
+		HMONITOR hm = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+		GetMonitorInfoW(hm, &mi);
+		RECT bounds = mi.rcWork;
+		bool have_bounds = false;
+		auto TryAcceptBounds = [&](HWND hwnd) -> bool
+			{
+				if (!hwnd || !IsWindow(hwnd))
+					return false;
+				if (hwnd == g_hwnd)
+					return false;
+				RECT rw{};
+				if (!GetWindowRect(hwnd, &rw))
+					return false;
+				if (rw.right <= rw.left || rw.bottom <= rw.top)
+					return false;
+				bounds = rw;
+				have_bounds = true;
+				return true;
+			};
+
+		// 1) Prefer known game main window (stable across mouse-over tooltip window).
+		if (!TryAcceptBounds(g_game_main_hwnd))
+		{
+			// 2) Fallback: resolve from cursor root window.
+			HWND hwnd_under_cursor = WindowFromPoint(pt);
+			if (hwnd_under_cursor)
+			{
+				HWND hwnd_root = GetAncestor(hwnd_under_cursor, GA_ROOT);
+				TryAcceptBounds(hwnd_root);
+			}
+		}
+
+		// 3) Use last valid host bounds if current lookup failed.
+		if (!have_bounds && g_have_last_host_bounds)
+		{
+			bounds = g_last_host_bounds;
+			have_bounds = true;
+		}
+		if (have_bounds)
+		{
+			g_last_host_bounds = bounds;
+			g_have_last_host_bounds = true;
+		}
+		const int work_w = (bounds.right > bounds.left) ? (bounds.right - bounds.left) : 1280;
+		const int work_h = (bounds.bottom > bounds.top) ? (bounds.bottom - bounds.top) : 720;
+		const int max_w_by_screen = ClampInt(work_w / 2, 200, 1200);
+		const int max_h_by_screen = ClampInt(work_h / 2, 120, 800);
+
+		int w = 0, h = 0;
+		const bool position_only = (!content_changed && was_visible);
+		if (position_only)
+		{
+			RECT rw{};
+			if (GetWindowRect(g_hwnd, &rw))
+			{
+				w = rw.right - rw.left;
+				h = rw.bottom - rw.top;
+			}
+		}
+		if (w <= 0 || h <= 0)
+		{
+			HDC hdc = GetDC(g_hwnd);
+			if (g_font)
+				SelectObject(hdc, g_font);
+			TEXTMETRICW tm{};
+			GetTextMetricsW(hdc, &tm);
+			const int avg_char_w = (tm.tmAveCharWidth > 0) ? tm.tmAveCharWidth : 8;
+			const int keyword_w = 16 + static_cast<int>(src->len) * avg_char_w;
+			const int min_w = ClampInt(keyword_w, 80, max_w_by_screen);
+			const int max_w = max_w_by_screen;
+
+			RECT one_line_rc{ 0, 0, 0, 0 };
+			DrawTextW(hdc, g_text.c_str(), static_cast<int>(g_text.size()), &one_line_rc,
+				DT_LEFT | DT_TOP | DT_NOPREFIX | DT_SINGLELINE | DT_CALCRECT);
+			int desired_w = (one_line_rc.right - one_line_rc.left) + 16;
+			const int tip_chars = static_cast<int>(g_text.size());
+			int long_pref_w = 0;
+			if (tip_chars >= 96)
+				long_pref_w = (work_w * 50) / 100;
+			else if (tip_chars >= 48)
+				long_pref_w = (work_w * 40) / 100;
+			else if (tip_chars >= 24)
+				long_pref_w = (work_w * 30) / 100;
+			if (long_pref_w > 0)
+				desired_w = max(desired_w, long_pref_w);
+			desired_w = ClampInt(desired_w, min_w, max_w);
+
+			RECT rc{ 0, 0, desired_w - 16, 0 };
+			DrawTextW(hdc, g_text.c_str(), static_cast<int>(g_text.size()), &rc,
+				DT_LEFT | DT_TOP | DT_NOPREFIX | DT_WORDBREAK | DT_CALCRECT);
+
+			w = (rc.right - rc.left) + 16;
+			h = (rc.bottom - rc.top) + 12;
+			if (w < 60) w = 60;
+			if (h < 28) h = 28;
+
+			// If height is too tall, try max width to improve readability first.
+			if (h > max_h_by_screen && desired_w < max_w)
+			{
+				RECT rc_wide{ 0, 0, max_w - 16, 0 };
+				DrawTextW(hdc, g_text.c_str(), static_cast<int>(g_text.size()), &rc_wide,
+					DT_LEFT | DT_TOP | DT_NOPREFIX | DT_WORDBREAK | DT_CALCRECT);
+				const int w_wide = (rc_wide.right - rc_wide.left) + 16;
+				const int h_wide = (rc_wide.bottom - rc_wide.top) + 12;
+				if (h_wide < h)
+				{
+					w = w_wide;
+					h = h_wide;
+				}
+			}
+			if (h > max_h_by_screen) h = max_h_by_screen;
+			ReleaseDC(g_hwnd, hdc);
+		}
+
+		const int space_left = pt.x - bounds.left;
+		const int space_right = bounds.right - pt.x;
+		const int space_above = pt.y - bounds.top;
+		const int space_below = bounds.bottom - pt.y;
+		const bool fit_left = space_left >= w;
+		const bool fit_right = space_right >= w;
+		const bool fit_above = space_above >= h;
+		const bool fit_below = space_below >= h;
+
+		const int MARGIN = 10; // minimum margin from cursor to tooltip edge
+
+		int x = pt.x;
+		if (fit_right && !fit_left)
+			x = pt.x + MARGIN;
+		else if (fit_left && !fit_right)
+			x = pt.x - w - MARGIN;
+		else if (fit_left && fit_right)
+			x = (space_right >= space_left) ? pt.x + MARGIN : (pt.x - w - MARGIN);
+		else
+			x = (space_right >= space_left) ? pt.x + MARGIN : (pt.x - w - MARGIN);
+
+		int y = pt.y - h;
+		if (fit_above && !fit_below)
+			y = pt.y - h - MARGIN;
+		else if (fit_below && !fit_above)
+			y = pt.y + MARGIN;
+		else if (fit_above && fit_below)
+			y = (space_above >= space_below) ? (pt.y - h - MARGIN) : (pt.y + MARGIN);
+		else
+			y = (space_above >= space_below) ? (pt.y - h - MARGIN) : (pt.y + MARGIN);
+
+		if (x + w > bounds.right) x = bounds.right - w;
+		if (y + h > bounds.bottom) y = bounds.bottom - h;
+		if (x < bounds.left) x = bounds.left;
+		if (y < bounds.top) y = bounds.top;
+
+		if (position_only)
+		{
+			// Move only: do not "show" repeatedly or touch z-order to avoid flicker.
+			SetWindowPos(g_hwnd, nullptr, x, y, 0, 0,
+				SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+		}
+		else
+		{
+			SetWindowPos(g_hwnd, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+			InvalidateRect(g_hwnd, nullptr, TRUE);
+		}
+	}
+
+	static bool IsViewed(const TooltipEntry* src)
+	{
+		if (!src)
+			return false;
+		return g_viewed_keys.find(MakeTooltipStateKey(src)) != g_viewed_keys.end();
+	}
+
+	static void MarkViewed(const TooltipEntry* src)
+	{
+		if (src)
+			g_viewed_keys.insert(MakeTooltipStateKey(src));
+	}
+
+	static void ClearViewedState()
+	{
+		g_viewed_keys.clear();
+	}
+
+	static void ExportViewedState(std::vector<TooltipStateKey>& out)
+	{
+		out.clear();
+		out.reserve(g_viewed_keys.size());
+		for (const auto& k : g_viewed_keys)
+			out.push_back(k);
+	}
+
+	static void ReplaceViewedState(const std::vector<TooltipStateKey>& keys)
+	{
+		g_viewed_keys.clear();
+		for (const auto& k : keys)
+		{
+			// Ignore malformed keys while loading.
+			if (k.line == 0 || k.start == 0 || k.len == 0)
+				continue;
+			g_viewed_keys.insert(k);
+		}
+	}
+
+	static void OnHover(const TooltipEntry* src)
+	{
+		if (!src) return;
+		Show(src, src->tip);
+	}
+
+	static void OnLeave(const TooltipEntry* src)
+	{
+		if (!g_src)
+			return;
+		if (src && g_src != src)
+			return;
+		Hide();
+	}
+}
+
+
+static TooltipEntry* ResolveTooltipEntryFromCallbackCtx(int* callback_ctx)
+{
+	__try
+	{
+		if (!callback_ctx || !callback_ctx[0])
+			return nullptr;
+		DWORD p_ctx0 = static_cast<DWORD>(callback_ctx[0]);
+		DWORD p_node_desc = *reinterpret_cast<DWORD*>(p_ctx0);
+		if (!p_node_desc)
+			return nullptr;
+		return reinterpret_cast<TooltipEntry*>(*reinterpret_cast<DWORD*>(p_node_desc + 0x10));
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return nullptr;
+	}
+}
+
+
+static bool IsKnownTooltipEntryPtr(const TooltipEntry* tip)
+{
+	return tip && g_tip_entry_ptrs.find(tip) != g_tip_entry_ptrs.end();
+}
+
+static int TooltipKeywordColorForMode(bool viewed, int mode)
+{
+	// Match original hyperlink callback (0x492BB0) color buckets by mode.
+	// mode 0: hover, mode 1: press-in, mode 2/3/4/5/6: normal/reset.
+	switch (mode)
+	{
+	case 0: // hover
+		return viewed ? 16750284 : 6212351;   // 0xFF96CC / 0x5ECAFF
+	case 1: // press-in
+		return viewed ? 16743620 : 4437247;   // 0xFF7CC4 / 0x43B4FF
+	default: // normal/reset
+		return viewed ? 16759261 : 9691647;   // 0xFFB9DD / 0x93E1FF
+	}
+}
+
+
+static void ApplyTooltipKeywordColor(int* callback_ctx, int color)
+{
+	if (!callback_ctx)
+		return;
+
+	DWORD fn = reinterpret_cast<DWORD>(GetModuleHandleA(NULL)) + 0x8A1A0;
+	__asm
+	{
+		push color
+		mov eax, callback_ctx
+		mov ecx, fn
+		call ecx
+		add esp, 4
+	}
+}
+
+char __cdecl TooltipKeyword_Callback(int mode, int button_node, int* callback_ctx)
+{
+	TooltipEntry* tip = ResolveTooltipEntryFromCallbackCtx(callback_ctx);
+	if (!IsKnownTooltipEntryPtr(tip))
+		tip = nullptr;
+	(void)button_node;
+	static const TooltipEntry* s_last_hover_tip = nullptr;
+
+	if (mode == 11)
+	{
+		if (callback_ctx)
+			callback_ctx[8] = 1; // always register; display policy is handled at runtime
+		return 1;
+	}
+
+	// Keep jump sentinel untouched for tooltip-only entries: must remain -1.
+	if (callback_ctx)
+		callback_ctx[8] = -1;
+
+	auto ShowTooltipAndMarkViewed = [&](int color_mode)
+		{
+			if (!tip)
+				return;
+			const bool viewed = TooltipPopup::IsViewed(tip);
+			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(viewed, color_mode));
+			TooltipPopup::OnHover(tip);
+			TooltipPopup::MarkViewed(tip); // hover/click both mean viewed in this patch
+			s_last_hover_tip = tip;
+		};
+
+	auto LeaveTooltip = [&](int color_mode)
+		{
+			const TooltipEntry* leave_tip = tip ? tip : s_last_hover_tip;
+			const bool viewed = TooltipPopup::IsViewed(leave_tip);
+			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(viewed, color_mode));
+			TooltipPopup::OnLeave(leave_tip);
+			s_last_hover_tip = nullptr;
+		};
+
+	switch (mode)
+	{
+	case 0: // hover
+		ShowTooltipAndMarkViewed(mode);
+		break;
+	case 1: // press-in
+		ShowTooltipAndMarkViewed(mode);
+		break;
+	case 8: // pre-hover gate path in some button-framework flows
+		ShowTooltipAndMarkViewed(0);
+		break;
+	case 3: // release-inside
+	case 4: // confirm
+		ShowTooltipAndMarkViewed(mode);
+		break;
+	case 2: // drag-out
+	case 5: // release-outside
+		LeaveTooltip(mode);
+		break;
+	case 6: // reset
+		if (tip)
+		{
+			const bool viewed = TooltipPopup::IsViewed(tip);
+			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(viewed, mode));
+		}
+		// Do not drive tooltip hide here: mode 6 can fire repeatedly in idle/reset paths.
+		break;
+	default:
+		break;
+	}
+	return 1;
+}
+
+
+static bool RegisterTooltipButtonRegion(
+	DWORD* text_field,
+	unsigned short line0,
+	unsigned short start0,
+	unsigned short len,
+	const TooltipEntry* tip)
+{
+	if (!text_field || !tip || len == 0)
+		return false;
+
+	DWORD req[5]{};
+	req[0] = static_cast<DWORD>(line0) | (static_cast<DWORD>(start0) << 16);
+	req[1] = static_cast<DWORD>(len);
+	req[2] = 0;
+	req[3] = reinterpret_cast<DWORD>(&TooltipKeyword_Callback);
+	req[4] = reinterpret_cast<DWORD>(tip);
+
+	DWORD fn = reinterpret_cast<DWORD>(GetModuleHandleA(NULL)) + 0x8E500;
+	BYTE ok = 0;
+	__asm
+	{
+		lea eax, req
+		mov edi, text_field
+		mov ecx, fn
+		call ecx
+		mov ok, al
+	}
+	return ok != 0;
+}
+
+static void RegisterTooltipsForCurrentText(DWORD* text_field)
+{
+	if (!text_field)
+		return;
+	LONG key = InterlockedCompareExchange(&g_cur_text_key, 0, 0);
+	if (key < 0)
+		return;
+	std::uint16_t cdnum = static_cast<std::uint16_t>((key >> 16) & 0xFFFF);
+	std::uint16_t text_idx = static_cast<std::uint16_t>(key & 0xFFFF);
+
+	auto cd_it = tip_map.find(cdnum);
+	if (cd_it == tip_map.end())
+		return;
+	auto idx_it = cd_it->second.find(text_idx);
+	if (idx_it == cd_it->second.end())
+		return;
+
+	for (const auto& tip : idx_it->second)
+	{
+		if (tip.line == 0 || tip.start == 0 || tip.len == 0)
+			continue;
+		unsigned short line0 = static_cast<unsigned short>(tip.line - 1);
+		unsigned short start0 = static_cast<unsigned short>(tip.start - 1);
+		unsigned short len = static_cast<unsigned short>(tip.len);
+
+		RegisterTooltipButtonRegion(text_field, line0, start0, len, &tip);
+	}
+}
+
+
+HOOKJMP hksub_48E840;
+__declspec(naked) char __cdecl orgsub_48E840(DWORD* text_field)
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		lea ecx, hksub_48E840
+		call HOOKJMP::get
+		mov ecx, eax
+		mov eax, text_field
+		call ecx
+		leave
+		ret
+	}
+}
+
+char __stdcall mysub_48E840(DWORD* text_field)
+{
+	// Register before TextField_RebuildButtonRegionsAndDispatch() so current pass
+	// consumes the new regions and we do not induce extra dirty-bit rebuild cycles.
+	if (text_field)
+	{
+		LONG key = InterlockedCompareExchange(&g_cur_text_key, 0, 0);
+		if (key >= 0)
+		{
+			const DWORD field = reinterpret_cast<DWORD>(text_field);
+			auto it = g_tooltip_registered_key_by_field.find(field);
+			if (it == g_tooltip_registered_key_by_field.end() || it->second != key)
+			{
+				RegisterTooltipsForCurrentText(text_field);
+				g_tooltip_registered_key_by_field[field] = key;
+			}
+		}
+	}
+	return orgsub_48E840(text_field);
+}
+
+__declspec(naked) char __cdecl sub_48E840()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push eax
+		call mysub_48E840
+		leave
+		ret
+	}
+}
+
+// ----------------------------------------------------------
+// Tooltip viewed-state reset tied to hyperlink lifecycle:
+// when the engine clears hyperlink entries, clear tooltip viewed state too.
+// ----------------------------------------------------------
+static void ResetTooltipViewedStateRuntime(const wchar_t* reason)
+{
+	TooltipPopup::Hide();
+	TooltipPopup::ClearViewedState();
+	InterlockedExchange(&g_cur_text_key, -1);
+	g_tooltip_registered_key_by_field.clear();
+	if (reason)
+	{
+		std::wstring msg = L"Tooltip viewed state reset: ";
+		msg += reason;
+		dbg.Log(msg);
+	}
+}
+
+HOOKJMP hksub_493090;
+__declspec(naked) DWORD* __cdecl orgsub_493090(DWORD* hyperlink_info_buf)
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		lea ecx, hksub_493090
+		call HOOKJMP::get
+		mov ecx, eax
+		mov edi, hyperlink_info_buf
+		call ecx
+		leave
+		ret
+	}
+}
+
+DWORD* __stdcall mysub_493090(DWORD* hyperlink_info_buf)
+{
+	DWORD* ret = orgsub_493090(hyperlink_info_buf);
+	ResetTooltipViewedStateRuntime(L"TextHyperlink_ClearEntries (0x493090)");
+	return ret;
+}
+
+__declspec(naked) DWORD* __cdecl sub_493090()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push edi
+		call mysub_493090
+		leave
+		ret
+	}
+}
+
+
+// ---------------------------------------------------------------------
+// Tooltip viewed-state save/load chunk (forward-only)
+// Persisted inline in local save stream, keyed by save-slot lifecycle.
+// ---------------------------------------------------------------------
+struct TooltipStateChunkHeader
+{
+	char magic[4];
+	std::uint32_t version;
+	std::uint32_t count;
+};
+
+struct TooltipStateChunkRecord
+{
+	std::uint16_t cdnum;
+	std::uint16_t text_idx;
+	std::uint16_t line;
+	std::uint16_t start;
+	std::uint16_t len;
+};
+
+static bool WriteAll(HANDLE hFile, const void* src, DWORD size)
+{
+	DWORD written = 0;
+	return WriteFile(hFile, src, size, &written, nullptr) && written == size;
+}
+
+static bool ReadAll(HANDLE hFile, void* dst, DWORD size)
+{
+	DWORD read = 0;
+	return ReadFile(hFile, dst, size, &read, nullptr) && read == size;
+}
+
+static bool SaveTooltipStateChunk(HANDLE hFile)
+{
+	static constexpr char kMagic[4] = { 'T', 'T', 'I', 'P' };
+	static constexpr std::uint32_t kVersion = 1;
+
+	std::vector<TooltipStateKey> keys;
+	TooltipPopup::ExportViewedState(keys);
+	if (keys.size() > 1048576)
+		return false;
+
+	TooltipStateChunkHeader hdr{};
+	std::memcpy(hdr.magic, kMagic, sizeof(hdr.magic));
+	hdr.version = kVersion;
+	hdr.count = static_cast<std::uint32_t>(keys.size());
+
+	if (!WriteAll(hFile, &hdr, sizeof(hdr)))
+		return false;
+	for (const auto& key : keys)
+	{
+		TooltipStateChunkRecord rec{};
+		rec.cdnum = key.cdnum;
+		rec.text_idx = key.text_idx;
+		rec.line = key.line;
+		rec.start = key.start;
+		rec.len = key.len;
+		if (!WriteAll(hFile, &rec, sizeof(rec)))
+			return false;
+	}
+	return true;
+}
+
+enum class TooltipChunkLoadResult
+{
+	Error = -1,
+	Missing = 0,
+	Loaded = 1
+};
+
+static TooltipChunkLoadResult LoadTooltipStateChunk(HANDLE hFile)
+{
+	static constexpr char kMagic[4] = { 'T', 'T', 'I', 'P' };
+	static constexpr std::uint32_t kVersion = 1;
+	static constexpr std::uint32_t kCountMax = 100000;
+
+	DWORD cur = ::SetFilePointer(hFile, 0, nullptr, FILE_CURRENT);
+	if (cur == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
+		return TooltipChunkLoadResult::Error;
+	DWORD end = ::GetFileSize(hFile, nullptr);
+	if (end == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+		return TooltipChunkLoadResult::Error;
+
+	if (end < cur || end - cur < sizeof(TooltipStateChunkHeader))
+		return TooltipChunkLoadResult::Missing;
+
+	TooltipStateChunkHeader hdr{};
+	if (!ReadAll(hFile, &hdr, sizeof(hdr)))
+	{
+		::SetFilePointer(hFile, cur, nullptr, FILE_BEGIN);
+		return TooltipChunkLoadResult::Missing;
+	}
+	if (std::memcmp(hdr.magic, kMagic, sizeof(hdr.magic)) != 0)
+	{
+		::SetFilePointer(hFile, cur, nullptr, FILE_BEGIN);
+		return TooltipChunkLoadResult::Missing;
+	}
+	if (hdr.version != kVersion || hdr.count > kCountMax)
+		return TooltipChunkLoadResult::Error;
+
+	std::vector<TooltipStateKey> keys;
+	keys.reserve(hdr.count);
+	for (std::uint32_t i = 0; i < hdr.count; ++i)
+	{
+		TooltipStateChunkRecord rec{};
+		if (!ReadAll(hFile, &rec, sizeof(rec)))
+			return TooltipChunkLoadResult::Error;
+		TooltipStateKey key{};
+		key.cdnum = rec.cdnum;
+		key.text_idx = rec.text_idx;
+		key.line = rec.line;
+		key.start = rec.start;
+		key.len = rec.len;
+		keys.push_back(key);
+	}
+	TooltipPopup::ReplaceViewedState(keys);
+	return TooltipChunkLoadResult::Loaded;
+}
+
+HOOKJMP hksub_462550;
+using tpSub_462550 = char(__stdcall*)(int, HANDLE);
+char __stdcall orgsub_462550(int local_scene_pack, HANDLE hFile)
+{
+	tpSub_462550 fn = reinterpret_cast<tpSub_462550>(hksub_462550.get());
+	return fn(local_scene_pack, hFile);
+}
+char __stdcall mysub_462550(int local_scene_pack, HANDLE hFile)
+{
+	dbg.Log(L"Saving local scene pack...");
+	const char ok = orgsub_462550(local_scene_pack, hFile);
+	if (!ok)
+		return 0;
+	if (!SaveTooltipStateChunk(hFile))
+	{
+		dbg.WarnPopup(L"Tooltip chunk save failed. Corrupt savedata.");
+		return 0;
+	}
+	return 1;
+}
+__declspec(naked) char __cdecl sub_462550()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push dword ptr[ebp + 0xC]  // hFile
+		push dword ptr[ebp + 0x8]  // local_scene_pack
+		call mysub_462550
+		leave
+		ret 0x8
+	}
+}
+
+HOOKJMP hksub_4621D0;
+using tpSub_4621D0 = char(__stdcall*)(DWORD*, HANDLE);
+char __stdcall orgsub_4621D0(DWORD* local_scene_pack, HANDLE hFile)
+{
+	tpSub_4621D0 fn = reinterpret_cast<tpSub_4621D0>(hksub_4621D0.get());
+	return fn(local_scene_pack, hFile);
+}
+char __stdcall mysub_4621D0(DWORD* local_scene_pack, HANDLE hFile)
+{
+	dbg.Log(L"Loading local scene pack...");
+	const char ok = orgsub_4621D0(local_scene_pack, hFile);
+	if (!ok)
+		return 0;
+
+	TooltipPopup::Hide();
+	TooltipPopup::ClearViewedState();
+	const TooltipChunkLoadResult lr = LoadTooltipStateChunk(hFile);
+	if (lr == TooltipChunkLoadResult::Error)
+	{
+		dbg.WarnPopup(L"Tooltip chunk load failed. Corrupt savedata.");
+		return 0;
+	}
+	return 1;
+}
+__declspec(naked) char __cdecl sub_4621D0()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push dword ptr[ebp + 0xC]  // hFile
+		push dword ptr[ebp + 0x8]  // local_scene_pack
+		call mysub_4621D0
+		leave
+		ret 0x8
+	}
+}
+
+
 wstring MBTWS(const char* str, int page)
 {
 	int len = MultiByteToWideChar(page, 0, str, strlen(str) + 1, NULL, 0);
@@ -1364,6 +2266,17 @@ void LogCurText(DWORD* buf)
 	DWORD secondBlock = *(DWORD*)(data + 0x28);
 	DWORD offset = (pos - secondBlock) / 12;
 	int idx = buf[2];
+
+	static LONG prev_key = -1;
+	LONG cur_key = PackTextKey(static_cast<std::uint16_t>(cdnum), static_cast<std::uint16_t>(idx));
+	InterlockedExchange(&g_cur_text_key, cur_key);
+	if (prev_key != cur_key)
+	{
+		TooltipPopup::Hide(); // next text always clears any active tooltip
+		g_tooltip_registered_key_by_field.clear();
+		prev_key = cur_key;
+	}
+
 	static wchar_t tmp[1024];
 	wsprintf(tmp, L"cdnum: %04d, text index: 0x%x", cdnum, idx);
 	dbg.Log(tmp);
@@ -1374,6 +2287,7 @@ void LogCurText(DWORD* buf)
 		DbgWindow::update_text(L"");
 		return;
 	}
+
 	std::vector<std::wstring> texts = jap_map[cdnum][idx];
 	int prev_line = 0;
 	if (hyp_map[cdnum].contains(idx) && hyp_map[cdnum][idx].size() > 0)
@@ -1590,6 +2504,20 @@ void MainProc()
 	if (!suc)
 		dbg.FatalPopup(L"Unable to patch hex:5004E3 BgmMode button song_20 image size");
 
+	// patch tooltips and savedata (no backward-compatibility)
+	suc = hksub_48E840.hook(sub_48E840, (LPVOID)(base + 0x8E840), 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_48E840 TextField_RebuildButtonRegionsAndDispatch");
+	suc = hksub_462550.hook(sub_462550, (LPVOID)(base + 0x62550), 9);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_462550 LocalScenePack_SaveToFile");
+	suc = hksub_4621D0.hook(sub_4621D0, (LPVOID)(base + 0x621D0), 9);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_4621D0 LocalScenePack_LoadFromFile");
+	suc = hksub_493090.hook(sub_493090, (LPVOID)(base + 0x93090), 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_493090 TextHyperlink_ClearEntries");
+
 
 	// loading replacement files
 	if (PathFileExistsW(L".\\chs"))
@@ -1639,7 +2567,7 @@ invalid:
 								}
 								png_replacement_table[hash] = std::move(data);
 								static wchar_t s[1024];
-								wsprintf(s, L"Loaded PNG replacement: %600s (hash: %x)", filename.c_str(), hash);
+								wsprintf(s, L"Loaded PNG replacement: %.600s (hash: %x)", filename.c_str(), hash);
 								dbg.Log(s);
 							}
 						}
@@ -1650,21 +2578,52 @@ invalid:
 			FindClose(hFind);
 		}
 
+		static const std::string JAP_MARK = "\xe2\x96\xa1\xe2\x96\xa1\xe2\x96\xa1\xe2\x96\xa1"; // □□□□
+		static const std::string CHS_MARK = "\xe2\x96\xa0\xe2\x96\xa0\xe2\x96\xa0\xe2\x96\xa0"; // ■■■■
+		static const std::string TRI_MARK = "\xe2\x96\xb3\xe2\x96\xb3\xe2\x96\xb3\xe2\x96\xb3"; // △△△△
+		static const std::string TRF_MARK = "\xe2\x96\xb2\xe2\x96\xb2\xe2\x96\xb2\xe2\x96\xb2"; // ▲▲▲▲
+		constexpr std::size_t MARK_LEN = 12;
+		constexpr std::size_t ID_LEN = 8;
+
+		auto RTrimInPlace = [](std::string& t)
+			{
+				t.erase(std::remove(t.begin(), t.end(), '\r'), t.end());
+				t.erase(std::remove(t.begin(), t.end(), '\n'), t.end());
+				t.erase(std::find_if(t.rbegin(), t.rend(), [](unsigned char ch) -> bool
+					{
+						return !std::isspace(ch);
+					}
+				).base(), t.end());
+			};
+
+		auto ParseMarkedLine = [&](const std::string& src, const std::string& mark,
+			std::uint16_t& out_cd, std::uint16_t& out_idx, std::string& out_payload) -> bool
+			{
+				if (src.size() < MARK_LEN * 2 + ID_LEN)
+					return false;
+				const std::string marker1 = src.substr(0, MARK_LEN);
+				const std::string idHex = src.substr(MARK_LEN, ID_LEN);
+				const std::string marker2 = src.substr(MARK_LEN + ID_LEN, MARK_LEN);
+				if (marker1 != mark || marker2 != mark)
+					return false;
+				for (char c : idHex)
+					if (!std::isxdigit(static_cast<unsigned char>(c)))
+						return false;
+				out_cd = static_cast<std::uint16_t>(std::strtoul(idHex.substr(0, 4).c_str(), nullptr, 10));
+				out_idx = static_cast<std::uint16_t>(std::strtoul(idHex.substr(4, 4).c_str(), nullptr, 16));
+				out_payload = src.substr(MARK_LEN * 2 + ID_LEN);
+				return true;
+			};
+
 		// load ExText.txt to construct translation tables
 		std::ifstream fp(".\\chs\\ExText.txt", std::ios::binary);   // UTF-8 source
 		std::string line;
 		unsigned jpcount = 0, chcount = 0, mkcount = 0;
 		while (std::getline(fp, line))
 		{
-			line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-			line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
-			line.erase(std::find_if(line.rbegin(), line.rend(), [](unsigned char ch) -> bool
-				{
-					return !std::isspace(ch);
-				}
-			).base(), line.end());
+			RTrimInPlace(line);
 
-			if (! line.empty() && ! [&]() -> bool
+			if (!line.empty() && ![&]() -> bool
 				{
 					/*  Four squares/blocks in UTF-8 are 4 × 3 bytes = 12 bytes              */
 					static const std::string JAP_MARK = "\xe2\x96\xa1\xe2\x96\xa1\xe2\x96\xa1\xe2\x96\xa1"; // □□□□
@@ -1675,7 +2634,7 @@ invalid:
 					constexpr std::size_t ID_LEN = 8;                                // ASCII
 
 					/*  Minimal length:  marker + id + marker = 12 + 8 + 12 = 32 bytes      */
-					if (line.size() < MARK_LEN * 2 + ID_LEN) return false;
+						if (line.size() < MARK_LEN * 2 + ID_LEN) return false;
 
 					const std::string marker1 = line.substr(0, MARK_LEN);
 					const std::string idHex = line.substr(MARK_LEN, ID_LEN);
@@ -1685,7 +2644,7 @@ invalid:
 					/*  Basic sanity checks  */
 					if (marker1 != marker2)                       return false;
 					if (marker1 == TRF_MARK)					return true; // not used
-					if (marker1 != JAP_MARK && marker1 != CHS_MARK && 
+					if (marker1 != JAP_MARK && marker1 != CHS_MARK &&
 						marker1 != TRI_MARK && marker1 != TRF_MARK) return false;
 					for (char c : idHex)                          // hex digits only?
 						if (!std::isxdigit(static_cast<unsigned char>(c))) return false;
@@ -1705,7 +2664,7 @@ invalid:
 						hyp_map[hi][lo].emplace_back(std::make_tuple(line, start, len));
 						return true;
 					}
-					
+
 					auto& target = (marker1 == JAP_MARK) ? jap_map : chs_map;
 					(marker1 == JAP_MARK ? jpcount++ : chcount++);
 					target[hi][lo].emplace_back(MBTWS(payload.c_str(), CP_UTF8));
@@ -1715,8 +2674,86 @@ invalid:
 				dbg.Log(L"Unexpected translation text: " + MBTWS(line.c_str(), CP_UTF8));
 			}
 		}
+
+		// load newtips.txt to construct tooltip table (two-line format)
+		std::ifstream fp_tip(".\\chs\\newtips.txt", std::ios::binary);
+		std::string tip_line_raw;
+		unsigned tipcount = 0;
+		struct PendingTipEntry
+		{
+			bool active = false;
+			std::uint16_t cdnum = 0;
+			std::uint16_t text_idx = 0;
+			std::uint16_t line = 0;
+			std::uint16_t start = 0;
+			std::uint16_t len = 0;
+		} pending_tip;
+
+		while (std::getline(fp_tip, tip_line_raw))
+		{
+			RTrimInPlace(tip_line_raw);
+			if (tip_line_raw.size() >= 3 &&
+				static_cast<unsigned char>(tip_line_raw[0]) == 0xEF &&
+				static_cast<unsigned char>(tip_line_raw[1]) == 0xBB &&
+				static_cast<unsigned char>(tip_line_raw[2]) == 0xBF)
+			{
+				tip_line_raw.erase(0, 3);
+			}
+			if (tip_line_raw.empty())
+				continue;
+
+			std::uint16_t cdnum = 0, text_idx = 0;
+			std::string payload;
+			if (!ParseMarkedLine(tip_line_raw, TRF_MARK, cdnum, text_idx, payload))
+			{
+				dbg.Log(L"Unexpected tooltip text line: " + MBTWS(tip_line_raw.c_str(), CP_UTF8));
+				pending_tip.active = false;
+				continue;
+			}
+
+			if (payload.rfind("Line=", 0) == 0)
+			{
+				int mark_line = 0, mark_start = 0, mark_len = 0;
+				if (sscanf_s(payload.c_str(), "Line=%d Char=%d Len=%d", &mark_line, &mark_start, &mark_len) != 3 ||
+					mark_line <= 0 || mark_start <= 0 || mark_len <= 0 ||
+					mark_line > 65535 || mark_start > 65535 || mark_len > 65535)
+				{
+					dbg.Log(L"Invalid tooltip range line: " + MBTWS(tip_line_raw.c_str(), CP_UTF8));
+					pending_tip.active = false;
+					continue;
+				}
+				pending_tip.active = true;
+				pending_tip.cdnum = cdnum;
+				pending_tip.text_idx = text_idx;
+				pending_tip.line = static_cast<std::uint16_t>(mark_line);
+				pending_tip.start = static_cast<std::uint16_t>(mark_start);
+				pending_tip.len = static_cast<std::uint16_t>(mark_len);
+				continue;
+			}
+
+			if (!pending_tip.active || pending_tip.cdnum != cdnum || pending_tip.text_idx != text_idx)
+			{
+				dbg.Log(L"Tooltip text line without matching Line/Char/Len line: " + MBTWS(tip_line_raw.c_str(), CP_UTF8));
+				continue;
+			}
+
+			std::wstring tip_text = payload.empty() ? L"(empty tooltip)" : MBTWS(payload.c_str(), CP_UTF8);
+			TooltipEntry tip_entry{};
+			tip_entry.cdnum = pending_tip.cdnum;
+			tip_entry.text_idx = pending_tip.text_idx;
+			tip_entry.line = pending_tip.line;
+			tip_entry.start = pending_tip.start;
+			tip_entry.len = pending_tip.len;
+			tip_entry.tip = std::move(tip_text);
+			tip_map[pending_tip.cdnum][pending_tip.text_idx].push_back(std::move(tip_entry));
+			pending_tip.active = false;
+			tipcount++;
+		}
+		RebuildTooltipEntryPointerIndex();
+
 		static wchar_t s[1024] = { 0 };
-		wsprintf(s, L"Loaded translation texts: %d cdnums; %d japs, %d chns; %d markers", jap_map.size(), jpcount, chcount, mkcount);
+		wsprintf(s, L"Loaded translation texts: %d cdnums; %d japs, %d chns; %d hyperlink markers; %d tooltip entries",
+			jap_map.size(), jpcount, chcount, mkcount, tipcount);
 		dbg.Log(s);
 	}
 

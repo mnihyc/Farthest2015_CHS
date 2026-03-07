@@ -64,50 +64,11 @@ struct TooltipEntry
 static Map2D<TooltipEntry> tip_map;
 static std::unordered_set<const TooltipEntry*> g_tip_entry_ptrs;
 
-struct TooltipStateKey
-{
-	std::uint16_t cdnum = 0;
-	std::uint16_t text_idx = 0;
-	std::uint16_t line = 0;
-	std::uint16_t start = 0;
-	std::uint16_t len = 0;
-
-	bool operator==(const TooltipStateKey& rhs) const
-	{
-		return cdnum == rhs.cdnum &&
-			text_idx == rhs.text_idx &&
-			line == rhs.line &&
-			start == rhs.start &&
-			len == rhs.len;
-	}
-};
-
-struct TooltipStateKeyHash
-{
-	std::size_t operator()(const TooltipStateKey& k) const noexcept
-	{
-		std::size_t h = static_cast<std::size_t>(2166136261u);
-		h = (h ^ k.cdnum) * static_cast<std::size_t>(16777619u);
-		h = (h ^ k.text_idx) * static_cast<std::size_t>(16777619u);
-		h = (h ^ k.line) * static_cast<std::size_t>(16777619u);
-		h = (h ^ k.start) * static_cast<std::size_t>(16777619u);
-		h = (h ^ k.len) * static_cast<std::size_t>(16777619u);
-		return h;
-	}
-};
-
-static TooltipStateKey MakeTooltipStateKey(const TooltipEntry* tip)
-{
-	TooltipStateKey key{};
-	if (!tip)
-		return key;
-	key.cdnum = tip->cdnum;
-	key.text_idx = tip->text_idx;
-	key.line = tip->line;
-	key.start = tip->start;
-	key.len = tip->len;
-	return key;
-}
+// Tooltip interruption policy switches:
+// false -> keep tooltip regions rendered but do not interrupt that mode.
+// true  -> let tooltip regions behave like regular buttons for that mode.
+static bool g_tooltip_interrupt_skip = false;
+static bool g_tooltip_interrupt_auto = false;
 
 static void RebuildTooltipEntryPointerIndex()
 {
@@ -125,6 +86,9 @@ static void RebuildTooltipEntryPointerIndex()
 // current text identity tracked from LogCurText: hi=cdnum, lo=text_idx
 static volatile LONG g_cur_text_key = -1;
 static std::unordered_map<DWORD, LONG> g_tooltip_registered_key_by_field;
+static volatile LONG g_last_register_tfl = 0;
+static volatile LONG g_last_register_line_idx = 0;
+static volatile LONG g_last_register_glyph_idx = 0;
 
 static inline LONG PackTextKey(std::uint16_t cdnum, std::uint16_t text_idx)
 {
@@ -199,7 +163,7 @@ HWND WINAPI myCreateWindowExA(
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	const bool probable_main_window = (lpClassName == lpWindowName);
 	if (probable_main_window)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.0 PRE-RELEASE (2026.3.5)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.1 PRE-RELEASE (2026.3.7)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	HWND ret = CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 	if (ret && probable_main_window)
 		g_game_main_hwnd = ret;
@@ -1068,7 +1032,6 @@ namespace TooltipPopup
 	static HFONT g_font = nullptr;
 	static std::wstring g_text;
 	static const TooltipEntry* g_src = nullptr;
-	static std::unordered_set<TooltipStateKey, TooltipStateKeyHash> g_viewed_keys;
 	static RECT g_last_host_bounds{};
 	static bool g_have_last_host_bounds = false;
 
@@ -1330,44 +1293,6 @@ namespace TooltipPopup
 		}
 	}
 
-	static bool IsViewed(const TooltipEntry* src)
-	{
-		if (!src)
-			return false;
-		return g_viewed_keys.find(MakeTooltipStateKey(src)) != g_viewed_keys.end();
-	}
-
-	static void MarkViewed(const TooltipEntry* src)
-	{
-		if (src)
-			g_viewed_keys.insert(MakeTooltipStateKey(src));
-	}
-
-	static void ClearViewedState()
-	{
-		g_viewed_keys.clear();
-	}
-
-	static void ExportViewedState(std::vector<TooltipStateKey>& out)
-	{
-		out.clear();
-		out.reserve(g_viewed_keys.size());
-		for (const auto& k : g_viewed_keys)
-			out.push_back(k);
-	}
-
-	static void ReplaceViewedState(const std::vector<TooltipStateKey>& keys)
-	{
-		g_viewed_keys.clear();
-		for (const auto& k : keys)
-		{
-			// Ignore malformed keys while loading.
-			if (k.line == 0 || k.start == 0 || k.len == 0)
-				continue;
-			g_viewed_keys.insert(k);
-		}
-	}
-
 	static void OnHover(const TooltipEntry* src)
 	{
 		if (!src) return;
@@ -1409,21 +1334,28 @@ static bool IsKnownTooltipEntryPtr(const TooltipEntry* tip)
 	return tip && g_tip_entry_ptrs.find(tip) != g_tip_entry_ptrs.end();
 }
 
-static int TooltipKeywordColorForMode(bool viewed, int mode)
+char __cdecl TooltipKeyword_Callback(int mode, int button_node, int* callback_ctx);
+
+static bool IsTooltipButtonNode(const DWORD* node)
 {
-	// Match original hyperlink callback (0x492BB0) color buckets by mode.
-	// mode 0: hover, mode 1: press-in, mode 2/3/4/5/6: normal/reset.
-	switch (mode)
-	{
-	case 0: // hover
-		return viewed ? 16750284 : 6212351;   // 0xFF96CC / 0x5ECAFF
-	case 1: // press-in
-		return viewed ? 16743620 : 4437247;   // 0xFF7CC4 / 0x43B4FF
-	default: // normal/reset
-		return viewed ? 16759261 : 9691647;   // 0xFFB9DD / 0x93E1FF
-	}
+	if (!node)
+		return false;
+	if (node[5] == reinterpret_cast<DWORD>(&TooltipKeyword_Callback))
+		return true;
+	const TooltipEntry* tip = reinterpret_cast<const TooltipEntry*>(node[6]);
+	return IsKnownTooltipEntryPtr(tip);
 }
 
+static COLORREF TooltipKeywordColorForMode(int mode)
+{
+	// Cool Slate (neutral, modern); a little bit grey
+	switch (mode)
+	{
+	case 0:  return RGB(0xC9, 0xD1, 0xDB); // hover
+	case 1:  return RGB(0xB6, 0xBE, 0xC8); // press-in
+	default: return RGB(0xDE, 0xE6, 0xF0); // normal/reset
+	}
+}
 
 static void ApplyTooltipKeywordColor(int* callback_ctx, int color)
 {
@@ -1452,7 +1384,7 @@ char __cdecl TooltipKeyword_Callback(int mode, int button_node, int* callback_ct
 	if (mode == 11)
 	{
 		if (callback_ctx)
-			callback_ctx[8] = 1; // always register; display policy is handled at runtime
+			callback_ctx[8] = 1; // always register/render tooltip keyword region
 		return 1;
 	}
 
@@ -1460,22 +1392,19 @@ char __cdecl TooltipKeyword_Callback(int mode, int button_node, int* callback_ct
 	if (callback_ctx)
 		callback_ctx[8] = -1;
 
-	auto ShowTooltipAndMarkViewed = [&](int color_mode)
+	auto ShowTooltipForMode = [&](int color_mode)
 		{
 			if (!tip)
 				return;
-			const bool viewed = TooltipPopup::IsViewed(tip);
-			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(viewed, color_mode));
+			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(color_mode));
 			TooltipPopup::OnHover(tip);
-			TooltipPopup::MarkViewed(tip); // hover/click both mean viewed in this patch
 			s_last_hover_tip = tip;
 		};
 
 	auto LeaveTooltip = [&](int color_mode)
 		{
 			const TooltipEntry* leave_tip = tip ? tip : s_last_hover_tip;
-			const bool viewed = TooltipPopup::IsViewed(leave_tip);
-			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(viewed, color_mode));
+			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(color_mode));
 			TooltipPopup::OnLeave(leave_tip);
 			s_last_hover_tip = nullptr;
 		};
@@ -1483,17 +1412,17 @@ char __cdecl TooltipKeyword_Callback(int mode, int button_node, int* callback_ct
 	switch (mode)
 	{
 	case 0: // hover
-		ShowTooltipAndMarkViewed(mode);
+		ShowTooltipForMode(mode);
 		break;
 	case 1: // press-in
-		ShowTooltipAndMarkViewed(mode);
+		ShowTooltipForMode(mode);
 		break;
 	case 8: // pre-hover gate path in some button-framework flows
-		ShowTooltipAndMarkViewed(0);
+		ShowTooltipForMode(0);
 		break;
 	case 3: // release-inside
 	case 4: // confirm
-		ShowTooltipAndMarkViewed(mode);
+		ShowTooltipForMode(mode);
 		break;
 	case 2: // drag-out
 	case 5: // release-outside
@@ -1502,8 +1431,7 @@ char __cdecl TooltipKeyword_Callback(int mode, int button_node, int* callback_ct
 	case 6: // reset
 		if (tip)
 		{
-			const bool viewed = TooltipPopup::IsViewed(tip);
-			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(viewed, mode));
+			ApplyTooltipKeywordColor(callback_ctx, TooltipKeywordColorForMode(mode));
 		}
 		// Do not drive tooltip hide here: mode 6 can fire repeatedly in idle/reset paths.
 		break;
@@ -1511,6 +1439,115 @@ char __cdecl TooltipKeyword_Callback(int mode, int button_node, int* callback_ct
 		break;
 	}
 	return 1;
+}
+
+
+static bool HasNonTooltipButtonForCurrentText(DWORD* text_field)
+{
+	if (!text_field)
+		return false;
+	const DWORD key = text_field[0xB4 / 4];
+	if (key == 0xFFFFFFFF)
+		return false;
+	DWORD* const list_head = reinterpret_cast<DWORD*>(text_field[0x54 / 4]);
+	if (!list_head)
+		return false;
+
+	const DWORD sentinel = reinterpret_cast<DWORD>(list_head);
+	DWORD node_ptr = list_head[0];
+	for (unsigned guard = 0; guard < 0x4000 && node_ptr && node_ptr != sentinel; ++guard)
+	{
+		const DWORD* const node = reinterpret_cast<const DWORD*>(node_ptr);
+		if (node[7] == key && !IsTooltipButtonNode(node))
+			return true;
+		node_ptr = node[0];
+	}
+	return false;
+}
+
+static bool IsSkipModeActive()
+{
+	const DWORD base = reinterpret_cast<DWORD>(GetModuleHandleA(nullptr));
+	__try
+	{
+		// Verified from WindowIconTray toggle paths:
+		// byte_51F82C is the skip mode flag.
+		const BYTE* const skip_flag = reinterpret_cast<const BYTE*>(base + 0x11F82C);
+		return (*skip_flag != 0);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return false;
+	}
+}
+
+static bool IsAutoModeActive()
+{
+	const DWORD base = reinterpret_cast<DWORD>(GetModuleHandleA(nullptr));
+	__try
+	{
+		// Verified from WindowIconTray toggle paths:
+		// byte_51F82D is the auto mode flag.
+		const BYTE* const auto_flag = reinterpret_cast<const BYTE*>(base + 0x11F82D);
+		return (*auto_flag != 0);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return false;
+	}
+}
+
+// has active button key?
+HOOKJMP hksub_48F7E0;
+__declspec(naked) char __cdecl orgsub_48F7E0(DWORD* text_field)
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push ebx
+		lea ecx, hksub_48F7E0
+		call HOOKJMP::get
+		mov ecx, eax
+		mov ebx, text_field
+		call ecx
+		pop ebx
+		leave
+		ret
+	}
+}
+
+char __stdcall mysub_48F7E0(DWORD* text_field)
+{
+	const bool skip_active = IsSkipModeActive();
+	const bool auto_active = IsAutoModeActive();
+	const bool suppress_on_skip = skip_active && !g_tooltip_interrupt_skip;
+	const bool suppress_on_auto = auto_active && !g_tooltip_interrupt_auto;
+	if (suppress_on_skip || suppress_on_auto)
+	{
+		__try
+		{
+			return HasNonTooltipButtonForCurrentText(text_field) ? 1 : 0;
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return orgsub_48F7E0(text_field);
+		}
+	}
+	return orgsub_48F7E0(text_field);
+}
+
+__declspec(naked) char __cdecl sub_48F7E0()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push ebx
+		call mysub_48F7E0
+		leave
+		ret
+	}
 }
 
 
@@ -1544,7 +1581,7 @@ static bool RegisterTooltipButtonRegion(
 	return ok != 0;
 }
 
-static void RegisterTooltipsForCurrentText(DWORD* text_field)
+static void RegisterTooltipsForCurrentText(DWORD* text_field, unsigned line_idx, unsigned glyph_idx)
 {
 	if (!text_field)
 		return;
@@ -1568,12 +1605,82 @@ static void RegisterTooltipsForCurrentText(DWORD* text_field)
 		unsigned short line0 = static_cast<unsigned short>(tip.line - 1);
 		unsigned short start0 = static_cast<unsigned short>(tip.start - 1);
 		unsigned short len = static_cast<unsigned short>(tip.len);
+		if (line0 < static_cast<unsigned short>(line_idx))
+			continue;
+		if (line0 == static_cast<unsigned short>(line_idx) &&
+			start0 < static_cast<unsigned short>(glyph_idx))
+			continue;
 
 		RegisterTooltipButtonRegion(text_field, line0, start0, len, &tip);
 	}
 }
 
 
+static DWORD* GetActiveScenarioTextField()
+{
+	// Verified from IDA:
+	// - GCTaskInfo global: imagebase + 0x11E670 (abs 0x51E670 in original image)
+	// - CTaskInfo::Task at +0x48
+	// - scenario text field used by hyperlink flow at Task + 0x70
+	const DWORD base = reinterpret_cast<DWORD>(GetModuleHandleA(nullptr));
+	__try
+	{
+		DWORD* const task_info = *reinterpret_cast<DWORD**>(base + 0x11E670);
+		if (!task_info)
+			return nullptr;
+		if ((task_info[0x44 / 4] & 1u) == 0)
+			return nullptr;
+		const DWORD task = task_info[0x48 / 4];
+		if (!task)
+			return nullptr;
+		return reinterpret_cast<DWORD*>(task + 0x70);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return nullptr;
+	}
+}
+
+static DWORD g_render_text_on_attribs_trampoline = 0;
+
+// RenderTextOnAttribs, get line and glyph
+HOOKJMP hksub_4868D0;
+__declspec(naked) char __cdecl sub_4868D0()
+{
+	__asm
+	{
+		// Save argument registers.
+		push eax
+		push edx
+		push ecx
+		push edi
+
+		// After 4 pushes:
+		// [esp+00] = saved edi  (TextField*)
+		// [esp+04] = saved ecx  (glyph_idx)
+		// [esp+28] = original [esp+18] (line_idx stack arg)
+		mov eax, dword ptr[esp + 28h]
+		mov dword ptr[g_last_register_line_idx], eax
+		mov eax, dword ptr[esp + 4]
+		mov dword ptr[g_last_register_glyph_idx], eax
+		mov eax, dword ptr[esp + 0]
+		mov dword ptr[g_last_register_tfl], eax
+
+		lea ecx, hksub_4868D0
+		call HOOKJMP::get
+		mov dword ptr[g_render_text_on_attribs_trampoline], eax
+
+		// Restore original argument registers and continue original execution.
+		pop edi
+		pop ecx
+		pop edx
+		pop eax
+		jmp dword ptr[g_render_text_on_attribs_trampoline]
+	}
+}
+
+
+// register callback to buttons
 HOOKJMP hksub_48E840;
 __declspec(naked) char __cdecl orgsub_48E840(DWORD* text_field)
 {
@@ -1597,14 +1704,30 @@ char __stdcall mysub_48E840(DWORD* text_field)
 	// consumes the new regions and we do not induce extra dirty-bit rebuild cycles.
 	if (text_field)
 	{
+		const DWORD field = reinterpret_cast<DWORD>(text_field);
+		DWORD* const scenario_tfl = GetActiveScenarioTextField();
+		if (scenario_tfl != text_field)
+		{
+			// This rebuild path is generic across many UI text fields (save/chapter/menu).
+			// Never register dialogue tooltip regions into non-scenario text fields.
+			g_tooltip_registered_key_by_field.erase(field);
+			return orgsub_48E840(text_field);
+		}
+		if (InterlockedCompareExchange(&g_last_register_tfl, 0, 0) != static_cast<LONG>(field))
+		{
+			// Register only when render capture belongs to this same field.
+			// Otherwise line/glyph lower-bound context is undefined for this callback pass.
+			return orgsub_48E840(text_field);
+		}
 		LONG key = InterlockedCompareExchange(&g_cur_text_key, 0, 0);
 		if (key >= 0)
 		{
-			const DWORD field = reinterpret_cast<DWORD>(text_field);
 			auto it = g_tooltip_registered_key_by_field.find(field);
 			if (it == g_tooltip_registered_key_by_field.end() || it->second != key)
 			{
-				RegisterTooltipsForCurrentText(text_field);
+				const unsigned line_idx = static_cast<unsigned>(InterlockedCompareExchange(&g_last_register_line_idx, 0, 0));
+				const unsigned glyph_idx = static_cast<unsigned>(InterlockedCompareExchange(&g_last_register_glyph_idx, 0, 0));
+				RegisterTooltipsForCurrentText(text_field, line_idx, glyph_idx);
 				g_tooltip_registered_key_by_field[field] = key;
 			}
 		}
@@ -1626,23 +1749,27 @@ __declspec(naked) char __cdecl sub_48E840()
 }
 
 // ----------------------------------------------------------
-// Tooltip viewed-state reset tied to hyperlink lifecycle:
-// when the engine clears hyperlink entries, clear tooltip viewed state too.
+// Tooltip runtime reset tied to hyperlink lifecycle:
+// when the engine clears hyperlink entries, clear tooltip popup/registration state.
 // ----------------------------------------------------------
-static void ResetTooltipViewedStateRuntime(const wchar_t* reason)
+static void ResetTooltipRuntimeState(const wchar_t* reason)
 {
 	TooltipPopup::Hide();
-	TooltipPopup::ClearViewedState();
 	InterlockedExchange(&g_cur_text_key, -1);
+	InterlockedExchange(&g_last_register_tfl, 0);
+	InterlockedExchange(&g_last_register_line_idx, 0);
+	InterlockedExchange(&g_last_register_glyph_idx, 0);
 	g_tooltip_registered_key_by_field.clear();
 	if (reason)
 	{
-		std::wstring msg = L"Tooltip viewed state reset: ";
+		std::wstring msg = L"Tooltip runtime reset: ";
 		msg += reason;
 		dbg.Log(msg);
 	}
 }
 
+
+// clear hyper links
 HOOKJMP hksub_493090;
 __declspec(naked) DWORD* __cdecl orgsub_493090(DWORD* hyperlink_info_buf)
 {
@@ -1663,7 +1790,7 @@ __declspec(naked) DWORD* __cdecl orgsub_493090(DWORD* hyperlink_info_buf)
 DWORD* __stdcall mysub_493090(DWORD* hyperlink_info_buf)
 {
 	DWORD* ret = orgsub_493090(hyperlink_info_buf);
-	ResetTooltipViewedStateRuntime(L"TextHyperlink_ClearEntries (0x493090)");
+	ResetTooltipRuntimeState(L"TextHyperlink_ClearEntries (0x493090)");
 	return ret;
 }
 
@@ -1682,124 +1809,16 @@ __declspec(naked) DWORD* __cdecl sub_493090()
 
 
 // ---------------------------------------------------------------------
-// Tooltip viewed-state save/load chunk (forward-only)
-// Persisted inline in local save stream, keyed by save-slot lifecycle.
+// Tooltip save/load hook stubs.
+// Current patch has no tooltip viewed-state persistence behavior.
 // ---------------------------------------------------------------------
-struct TooltipStateChunkHeader
-{
-	char magic[4];
-	std::uint32_t version;
-	std::uint32_t count;
-};
-
-struct TooltipStateChunkRecord
-{
-	std::uint16_t cdnum;
-	std::uint16_t text_idx;
-	std::uint16_t line;
-	std::uint16_t start;
-	std::uint16_t len;
-};
-
-static bool WriteAll(HANDLE hFile, const void* src, DWORD size)
-{
-	DWORD written = 0;
-	return WriteFile(hFile, src, size, &written, nullptr) && written == size;
-}
-
-static bool ReadAll(HANDLE hFile, void* dst, DWORD size)
-{
-	DWORD read = 0;
-	return ReadFile(hFile, dst, size, &read, nullptr) && read == size;
-}
-
 static bool SaveTooltipStateChunk(HANDLE hFile)
 {
-	static constexpr char kMagic[4] = { 'T', 'T', 'I', 'P' };
-	static constexpr std::uint32_t kVersion = 1;
-
-	std::vector<TooltipStateKey> keys;
-	TooltipPopup::ExportViewedState(keys);
-	if (keys.size() > 1048576)
-		return false;
-
-	TooltipStateChunkHeader hdr{};
-	std::memcpy(hdr.magic, kMagic, sizeof(hdr.magic));
-	hdr.version = kVersion;
-	hdr.count = static_cast<std::uint32_t>(keys.size());
-
-	if (!WriteAll(hFile, &hdr, sizeof(hdr)))
-		return false;
-	for (const auto& key : keys)
-	{
-		TooltipStateChunkRecord rec{};
-		rec.cdnum = key.cdnum;
-		rec.text_idx = key.text_idx;
-		rec.line = key.line;
-		rec.start = key.start;
-		rec.len = key.len;
-		if (!WriteAll(hFile, &rec, sizeof(rec)))
-			return false;
-	}
+	(void)hFile;
 	return true;
 }
 
-enum class TooltipChunkLoadResult
-{
-	Error = -1,
-	Missing = 0,
-	Loaded = 1
-};
-
-static TooltipChunkLoadResult LoadTooltipStateChunk(HANDLE hFile)
-{
-	static constexpr char kMagic[4] = { 'T', 'T', 'I', 'P' };
-	static constexpr std::uint32_t kVersion = 1;
-	static constexpr std::uint32_t kCountMax = 100000;
-
-	DWORD cur = ::SetFilePointer(hFile, 0, nullptr, FILE_CURRENT);
-	if (cur == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
-		return TooltipChunkLoadResult::Error;
-	DWORD end = ::GetFileSize(hFile, nullptr);
-	if (end == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
-		return TooltipChunkLoadResult::Error;
-
-	if (end < cur || end - cur < sizeof(TooltipStateChunkHeader))
-		return TooltipChunkLoadResult::Missing;
-
-	TooltipStateChunkHeader hdr{};
-	if (!ReadAll(hFile, &hdr, sizeof(hdr)))
-	{
-		::SetFilePointer(hFile, cur, nullptr, FILE_BEGIN);
-		return TooltipChunkLoadResult::Missing;
-	}
-	if (std::memcmp(hdr.magic, kMagic, sizeof(hdr.magic)) != 0)
-	{
-		::SetFilePointer(hFile, cur, nullptr, FILE_BEGIN);
-		return TooltipChunkLoadResult::Missing;
-	}
-	if (hdr.version != kVersion || hdr.count > kCountMax)
-		return TooltipChunkLoadResult::Error;
-
-	std::vector<TooltipStateKey> keys;
-	keys.reserve(hdr.count);
-	for (std::uint32_t i = 0; i < hdr.count; ++i)
-	{
-		TooltipStateChunkRecord rec{};
-		if (!ReadAll(hFile, &rec, sizeof(rec)))
-			return TooltipChunkLoadResult::Error;
-		TooltipStateKey key{};
-		key.cdnum = rec.cdnum;
-		key.text_idx = rec.text_idx;
-		key.line = rec.line;
-		key.start = rec.start;
-		key.len = rec.len;
-		keys.push_back(key);
-	}
-	TooltipPopup::ReplaceViewedState(keys);
-	return TooltipChunkLoadResult::Loaded;
-}
-
+// save hyper links
 HOOKJMP hksub_462550;
 using tpSub_462550 = char(__stdcall*)(int, HANDLE);
 char __stdcall orgsub_462550(int local_scene_pack, HANDLE hFile)
@@ -1834,6 +1853,7 @@ __declspec(naked) char __cdecl sub_462550()
 	}
 }
 
+// load hyper links
 HOOKJMP hksub_4621D0;
 using tpSub_4621D0 = char(__stdcall*)(DWORD*, HANDLE);
 char __stdcall orgsub_4621D0(DWORD* local_scene_pack, HANDLE hFile)
@@ -1849,13 +1869,7 @@ char __stdcall mysub_4621D0(DWORD* local_scene_pack, HANDLE hFile)
 		return 0;
 
 	TooltipPopup::Hide();
-	TooltipPopup::ClearViewedState();
-	const TooltipChunkLoadResult lr = LoadTooltipStateChunk(hFile);
-	if (lr == TooltipChunkLoadResult::Error)
-	{
-		dbg.WarnPopup(L"Tooltip chunk load failed. Corrupt savedata.");
-		return 0;
-	}
+	(void)hFile;
 	return 1;
 }
 __declspec(naked) char __cdecl sub_4621D0()
@@ -2274,6 +2288,9 @@ void LogCurText(DWORD* buf)
 	{
 		TooltipPopup::Hide(); // next text always clears any active tooltip
 		g_tooltip_registered_key_by_field.clear();
+		InterlockedExchange(&g_last_register_tfl, 0);
+		InterlockedExchange(&g_last_register_line_idx, 0);
+		InterlockedExchange(&g_last_register_glyph_idx, 0);
 		prev_key = cur_key;
 	}
 
@@ -2504,7 +2521,13 @@ void MainProc()
 	if (!suc)
 		dbg.FatalPopup(L"Unable to patch hex:5004E3 BgmMode button song_20 image size");
 
-	// patch tooltips and savedata (no backward-compatibility)
+	// patch tooltips, buttons, texts and savedata
+	suc = hksub_48F7E0.hook(sub_48F7E0, (LPVOID)(base + 0x8F7E0), 10);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_48F7E0 TextField_HasActiveButtonKey");
+	suc = hksub_4868D0.hook(sub_4868D0, (LPVOID)(base + 0x868D0), 9);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook RenderTextOnAttribs (0x4868D0)");
 	suc = hksub_48E840.hook(sub_48E840, (LPVOID)(base + 0x8E840), 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook sub_48E840 TextField_RebuildButtonRegionsAndDispatch");

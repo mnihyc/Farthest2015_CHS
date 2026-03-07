@@ -67,8 +67,9 @@ static std::unordered_set<const TooltipEntry*> g_tip_entry_ptrs;
 // Tooltip interruption policy switches:
 // false -> keep tooltip regions rendered but do not interrupt that mode.
 // true  -> let tooltip regions behave like regular buttons for that mode.
-static bool g_tooltip_interrupt_skip = false;
-static bool g_tooltip_interrupt_auto = false;
+static bool g_tooltip_enabled = true;
+static bool g_tooltip_interrupt_skip = true;
+static bool g_tooltip_interrupt_auto = true;
 
 static void RebuildTooltipEntryPointerIndex()
 {
@@ -163,7 +164,7 @@ HWND WINAPI myCreateWindowExA(
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	const bool probable_main_window = (lpClassName == lpWindowName);
 	if (probable_main_window)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.1 PRE-RELEASE (2026.3.7)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.2 PRE-RELEASE (2026.3.7)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	HWND ret = CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 	if (ret && probable_main_window)
 		g_game_main_hwnd = ret;
@@ -1702,7 +1703,7 @@ char __stdcall mysub_48E840(DWORD* text_field)
 {
 	// Register before TextField_RebuildButtonRegionsAndDispatch() so current pass
 	// consumes the new regions and we do not induce extra dirty-bit rebuild cycles.
-	if (text_field)
+	if (text_field && g_tooltip_enabled)
 	{
 		const DWORD field = reinterpret_cast<DWORD>(text_field);
 		DWORD* const scenario_tfl = GetActiveScenarioTextField();
@@ -1929,8 +1930,18 @@ namespace DbgWindow
 	static std::wstring   g_caption = L"Debug Window";
 	static std::mutex     g_stateMutex;        // protects caption/text swaps
 
+	// for translation settings window
+	static HWND           g_settingsWnd = nullptr;
+	static HWND           g_btnShowDebug = nullptr;
+	static HWND           g_chkEnableTooltip = nullptr;
+	static HWND           g_chkInterruptSkip = nullptr;
+	static HWND           g_chkInterruptAuto = nullptr;
+	static std::mutex     g_settingsMutex;
+
 	HHOOK g_kbHook = nullptr;
 	static void start_window(const wstring& caption, const wstring& text);
+	static void show_or_open_debug_window();
+	static void show_or_open_settings_window();
 
 	static std::deque<std::wstring> g_hist;   // previously rendered texts
 	static int g_prevIdx = 0;
@@ -2165,9 +2176,174 @@ namespace DbgWindow
 		return 0;
 	}
 
+	enum : int
+	{
+		IDC_BTN_SHOW_DEBUG = 5101,
+		IDC_CHK_ENABLE_TOOLTIP = 5102,
+		IDC_CHK_INTERRUPT_SKIP = 5103,
+		IDC_CHK_INTERRUPT_AUTO = 5104,
+	};
+
+	static void sync_settings_controls()
+	{
+		if (g_chkEnableTooltip)
+			SendMessageW(g_chkEnableTooltip, BM_SETCHECK, g_tooltip_enabled ? BST_CHECKED : BST_UNCHECKED, 0);
+		if (g_chkInterruptSkip)
+			SendMessageW(g_chkInterruptSkip, BM_SETCHECK, g_tooltip_interrupt_skip ? BST_CHECKED : BST_UNCHECKED, 0);
+		if (g_chkInterruptAuto)
+			SendMessageW(g_chkInterruptAuto, BM_SETCHECK, g_tooltip_interrupt_auto ? BST_CHECKED : BST_UNCHECKED, 0);
+		if (g_chkInterruptSkip)
+			EnableWindow(g_chkInterruptSkip, g_tooltip_enabled ? TRUE : FALSE);
+		if (g_chkInterruptAuto)
+			EnableWindow(g_chkInterruptAuto, g_tooltip_enabled ? TRUE : FALSE);
+	}
+
+	static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	{
+		switch (msg)
+		{
+		case WM_CREATE:
+		{
+			g_btnShowDebug = CreateWindowExW(0, L"BUTTON", L"Show Debug Window (Alt+N)",
+				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+				12, 12, 245, 26, hWnd, (HMENU)(INT_PTR)IDC_BTN_SHOW_DEBUG, g_hInst, nullptr);
+
+			g_chkEnableTooltip = CreateWindowExW(0, L"BUTTON", L"Enable Tooltip",
+				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+				12, 46, 260, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_ENABLE_TOOLTIP, g_hInst, nullptr);
+
+			g_chkInterruptSkip = CreateWindowExW(0, L"BUTTON", L"Tooltip can interrupt Skip",
+				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+				12, 72, 260, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_INTERRUPT_SKIP, g_hInst, nullptr);
+
+			g_chkInterruptAuto = CreateWindowExW(0, L"BUTTON", L"Tooltip can interrupt Auto",
+				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+				12, 98, 260, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_INTERRUPT_AUTO, g_hInst, nullptr);
+
+			sync_settings_controls();
+			return 0;
+		}
+		case WM_COMMAND:
+		{
+			const int id = LOWORD(wParam);
+			switch (id)
+			{
+			case IDC_BTN_SHOW_DEBUG:
+				show_or_open_debug_window();
+				return 0;
+			case IDC_CHK_ENABLE_TOOLTIP:
+				if (g_chkEnableTooltip)
+				{
+					g_tooltip_enabled = (SendMessageW(g_chkEnableTooltip, BM_GETCHECK, 0, 0) == BST_CHECKED);
+					sync_settings_controls();
+				}
+				return 0;
+			case IDC_CHK_INTERRUPT_SKIP:
+				if (g_chkInterruptSkip)
+					g_tooltip_interrupt_skip = (SendMessageW(g_chkInterruptSkip, BM_GETCHECK, 0, 0) == BST_CHECKED);
+				return 0;
+			case IDC_CHK_INTERRUPT_AUTO:
+				if (g_chkInterruptAuto)
+					g_tooltip_interrupt_auto = (SendMessageW(g_chkInterruptAuto, BM_GETCHECK, 0, 0) == BST_CHECKED);
+				return 0;
+			default:
+				break;
+			}
+			break;
+		}
+		case WM_CLOSE:
+			DestroyWindow(hWnd);
+			return 0;
+		case WM_DESTROY:
+			g_btnShowDebug = nullptr;
+			g_chkEnableTooltip = nullptr;
+			g_chkInterruptSkip = nullptr;
+			g_chkInterruptAuto = nullptr;
+			g_settingsWnd = nullptr;
+			PostQuitMessage(0);
+			return 0;
+		}
+		return DefWindowProcW(hWnd, msg, wParam, lParam);
+	}
+
+	static unsigned __stdcall SettingsWindowThread(void*)
+	{
+		const wchar_t* kClass = L"TranslationDebugSettingsClass";
+		{
+			std::lock_guard lg(g_settingsMutex);
+			WNDCLASSEXW wc{ sizeof(wc) };
+			wc.style = CS_HREDRAW | CS_VREDRAW;
+			wc.lpfnWndProc = SettingsWndProc;
+			wc.hInstance = g_hInst;
+			wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+			wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+			wc.lpszClassName = kClass;
+			RegisterClassExW(&wc);
+
+			RECT rc{ 0, 0, 290, 140 };
+			AdjustWindowRectEx(&rc, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, FALSE,
+				WS_EX_TOPMOST | WS_EX_TOOLWINDOW);
+
+			g_settingsWnd = CreateWindowExW(
+				WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+				kClass,
+				L"Translation Settings",
+				WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+				CW_USEDEFAULT, CW_USEDEFAULT,
+				rc.right - rc.left, rc.bottom - rc.top,
+				nullptr, nullptr, g_hInst, nullptr);
+		}
+		if (!g_settingsWnd)
+			return 0;
+
+		ShowWindow(g_settingsWnd, SW_SHOWNORMAL);
+		UpdateWindow(g_settingsWnd);
+
+		MSG msg;
+		while (GetMessageW(&msg, nullptr, 0, 0))
+		{
+			TranslateMessage(&msg);
+			DispatchMessageW(&msg);
+		}
+
+		g_settingsWnd = nullptr;
+		UnregisterClassW(kClass, g_hInst);
+		_endthreadex(0);
+		return 0;
+	}
+
+	static void show_or_open_debug_window()
+	{
+		if (!g_hWnd)
+		{
+			start_window(g_caption, g_text);
+		}
+		else
+		{
+			ShowWindow(g_hWnd, SW_SHOWNOACTIVATE);
+			AdjustFontToFit();
+			InvalidateRect(g_hWnd, nullptr, TRUE);
+		}
+	}
+
+	static void show_or_open_settings_window()
+	{
+		if (!g_settingsWnd)
+		{
+			uintptr_t hThread = _beginthreadex(nullptr, 0, SettingsWindowThread, nullptr, 0, nullptr);
+			if (hThread) CloseHandle((HANDLE)hThread);
+			return;
+		}
+		sync_settings_controls();
+		ShowWindow(g_settingsWnd, SW_SHOWNORMAL);
+		SetForegroundWindow(g_settingsWnd);
+	}
+
 
 	// ----------------------------------------------------------
-	// Low-level keyboard hook: listen for Ctrl+N or Alt+N to reopen the debug window
+	// Low-level keyboard hook:
+	// - Ctrl+N / Alt+N => show debug window
+	// - Ctrl+M / Alt+M => show translation settings window
 	// ----------------------------------------------------------
 	static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 	{
@@ -2179,17 +2355,11 @@ namespace DbgWindow
 
 			if (p->vkCode == 'N' && (ctrl || alt))
 			{
-				// Reopen or restart debug window
-				if (!g_hWnd)
-				{
-					start_window(g_caption, g_text);
-				}
-				else
-				{
-					ShowWindow(g_hWnd, SW_SHOWNOACTIVATE); // ensure visible
-					AdjustFontToFit();
-					InvalidateRect(g_hWnd, nullptr, TRUE);
-				}
+				show_or_open_debug_window();
+			}
+			else if (p->vkCode == 'M' && (ctrl || alt))
+			{
+				show_or_open_settings_window();
 			}
 		}
 		return CallNextHookEx(nullptr, nCode, wParam, lParam);

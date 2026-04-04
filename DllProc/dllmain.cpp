@@ -164,7 +164,7 @@ HWND WINAPI myCreateWindowExA(
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	const bool probable_main_window = (lpClassName == lpWindowName);
 	if (probable_main_window)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.2 PRE-RELEASE (2026.3.7)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.3 PRE-RELEASE (2026.4.4)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	HWND ret = CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 	if (ret && probable_main_window)
 		g_game_main_hwnd = ret;
@@ -1060,16 +1060,22 @@ namespace TooltipPopup
 			HDC hdc = BeginPaint(hWnd, &ps);
 			RECT rc{};
 			GetClientRect(hWnd, &rc);
-			HBRUSH bg = CreateSolidBrush(RGB(255, 255, 225));
+
+			// light grey background
+			HBRUSH bg = CreateSolidBrush(RGB(220, 220, 220));
 			FillRect(hdc, &rc, bg);
 			DeleteObject(bg);
+
 			FrameRect(hdc, &rc, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+
 			if (g_font)
 				SelectObject(hdc, g_font);
+
 			SetBkMode(hdc, TRANSPARENT);
 			rc.left += 8; rc.top += 6; rc.right -= 8; rc.bottom -= 6;
 			DrawTextW(hdc, g_text.c_str(), static_cast<int>(g_text.size()), &rc,
 				DT_LEFT | DT_TOP | DT_NOPREFIX | DT_WORDBREAK);
+
 			EndPaint(hWnd, &ps);
 			return 0;
 		}
@@ -1089,7 +1095,7 @@ namespace TooltipPopup
 		wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
 		RegisterClassW(&wc);
 		g_hwnd = CreateWindowExW(
-			WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+			WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED,
 			kClass,
 			L"",
 			WS_POPUP,
@@ -1098,6 +1104,7 @@ namespace TooltipPopup
 		);
 		if (!g_hwnd)
 			return false;
+		SetLayeredWindowAttributes(g_hwnd, 0, 215, LWA_ALPHA); // slightly transparent
 		if (!g_font)
 		{
 			g_font = CreateFontW(

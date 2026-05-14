@@ -111,7 +111,7 @@ def TextImp(dp: str, enc: str, outfile: str):
 					if idx not in nhyptxt[i]:
 						print(f'HTextExtract: text idx {i}/{hex(idx)} not found in hyptxt, is this expected?')
 					else:
-						assert(len(saved_hyptxt) == len(nhyptxt[i][idx]))
+						assert len(saved_hyptxt) == len(nhyptxt[i][idx]), f"Not matched {hex(i)} {hex(idx)}"
 						for saved_thyptxt, nhyptxtt in zip(saved_hyptxt, nhyptxt[i][idx]):
 							lns[saved_thyptxt[0]] = lns[saved_thyptxt[0]].partition(':')[0] + ': ({},{},{},{},{},{})'.format(
 								*map(hex, nhyptxtt), *saved_thyptxt[1][3:])

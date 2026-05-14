@@ -35,9 +35,9 @@ using std::wstring;
 // main procedure
 void MainProc();
 // convert multi-byte to wstring
-wstring MBTWS(const char* str, int page=CP_ACP);
+wstring MBTWS(const char* str, int page = CP_ACP);
 // convert wstring to multi-byte
-char* WSTMB(const wstring& str, int page=CP_ACP);
+char* WSTMB(const wstring& str, int page = CP_ACP);
 
 // png replacement table
 std::unordered_map<unsigned, std::vector<char>> png_replacement_table;
@@ -70,6 +70,7 @@ static std::unordered_set<const TooltipEntry*> g_tip_entry_ptrs;
 static bool g_tooltip_enabled = true;
 static bool g_tooltip_interrupt_skip = true;
 static bool g_tooltip_interrupt_auto = true;
+static bool g_tooltip_allow_autosave = false;
 
 static void RebuildTooltipEntryPointerIndex()
 {
@@ -164,7 +165,7 @@ HWND WINAPI myCreateWindowExA(
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	const bool probable_main_window = (lpClassName == lpWindowName);
 	if (probable_main_window)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.3 PRE-RELEASE (2026.4.4)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.5 PRE-RELEASE (2026.5.15)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	HWND ret = CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 	if (ret && probable_main_window)
 		g_game_main_hwnd = ret;
@@ -266,12 +267,12 @@ void WINAPI myOutputDebugStringA(LPCSTR lpOutputString)
 
 // hook my document path, forcing SaveData to current path
 HOOKJMP hkSHGetSpecialFolderPathA;
-typedef BOOL (WINAPI* tpSHGetSpecialFolderPathA)(HWND, LPSTR, int, BOOL);
+typedef BOOL(WINAPI* tpSHGetSpecialFolderPathA)(HWND, LPSTR, int, BOOL);
 BOOL WINAPI mySHGetSpecialFolderPathA(HWND hwnd, LPSTR pszPath, int csidl, BOOL fCreate)
 {
 	tpSHGetSpecialFolderPathA SHGSPA = static_cast<tpSHGetSpecialFolderPathA>(hkSHGetSpecialFolderPathA.get());
 	if (csidl == CSIDL_MYDOCUMENTS)
-		return pszPath[0]=0;
+		return pszPath[0] = 0;
 	return SHGSPA(hwnd, pszPath, csidl, fCreate);
 }
 
@@ -290,7 +291,7 @@ LONG WINAPI myRegOpenKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, REGSAM 
 
 // recognize chinese
 HOOKJMP hkCreateFontA;
-typedef HFONT (WINAPI* tpCreateFontA)(int, int, int, int, int, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, LPCSTR);
+typedef HFONT(WINAPI* tpCreateFontA)(int, int, int, int, int, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, LPCSTR);
 HFONT WINAPI myCreateFontA(
 	int    cHeight,
 	int    cWidth,
@@ -326,7 +327,7 @@ HFONT WINAPI myCreateFontA(
 
 // recognize chinese, or boundary check
 HOOKJMP hkIsDBCSLeadByte;
-typedef BOOL (WINAPI* tpIsDBCSLeadByte)(BYTE);
+typedef BOOL(WINAPI* tpIsDBCSLeadByte)(BYTE);
 BOOL WINAPI myIsDBCSLeadByte(BYTE TestChar)
 {
 	tpIsDBCSLeadByte IDB = static_cast<tpIsDBCSLeadByte>(hkIsDBCSLeadByte.get());
@@ -443,7 +444,7 @@ __declspec(naked) char __cdecl orgsub_475E90(DWORD* a1, DWORD* a2, int a3)
 		call ecx
 		; //add esp, 0x4
 		leave
-		ret
+			ret
 	}
 }
 char __stdcall mysub_475E90(DWORD* a1, DWORD* a2, int a3)
@@ -562,36 +563,36 @@ __declspec(naked) char __cdecl inst_421009()
 		pop ecx; //strip arguments
 
 		push ebp
-		mov ebp, esp
-		push ebx
-		push edx
-		push edi
-		push esi; //save registers
+			mov ebp, esp
+			push ebx
+			push edx
+			push edi
+			push esi; //save registers
 
 		sub eax, edi
-		add eax, ebx
-		add eax, 0x4; //start offset of buffer
+			add eax, ebx
+			add eax, 0x4; //start offset of buffer
 
 		push edi; //length
 		push eax; //buffer
 		call myinst_421009
-		push eax; //eax = return value
+			push eax; //eax = return value
 
 		lea ecx, hkinst_421009
-		call HOOKJMP::get
-		mov ecx, eax
-		add ecx, 0x6; //skip original code
+			call HOOKJMP::get
+			mov ecx, eax
+			add ecx, 0x6; //skip original code
 		push ecx; //ecx = continue execution address
 
 		pop ecx
-		pop eax
+			pop eax
 
-		pop esi
-		pop edi
-		pop edx
-		pop ebx; //restore registers
+			pop esi
+			pop edi
+			pop edx
+			pop ebx; //restore registers
 		leave
-		jmp ecx; //continue
+			jmp ecx; //continue
 	}
 }
 
@@ -691,7 +692,7 @@ __declspec(naked) void __cdecl inst_478330()
 
 // patch file validation function
 HOOKJMP hkRoundKey;
-WORD __stdcall myRoundKey(int size, BYTE *b, WORD *key)
+WORD __stdcall myRoundKey(int size, BYTE* b, WORD* key)
 {
 	if (key)
 		*key = 0;
@@ -945,7 +946,7 @@ __declspec(naked) int __cdecl orgsub_4AFAC0(LPVOID buf, DWORD num, int u2, DWORD
 }
 int __stdcall mysub_4AFAC0(LPVOID buf, DWORD num, int u2, DWORD* a4)
 {
-	HANDLE handle = (HANDLE) *(a4 + 1);
+	HANDLE handle = (HANDLE) * (a4 + 1);
 	DWORD pos = SetFilePointer(handle, 0, NULL, FILE_CURRENT);
 	if (pos == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
 	{
@@ -954,7 +955,7 @@ int __stdcall mysub_4AFAC0(LPVOID buf, DWORD num, int u2, DWORD* a4)
 	}
 	if (VirtualFS::resolve_region(handle, pos) != nullptr)
 	{
-		static wchar_t s1[1024] = {0};
+		static wchar_t s1[1024] = { 0 };
 		wsprintf(s1, L"png_Read: virtual mapping detected, handle: %x, pos: %x, num: %x", (DWORD)handle, pos, num);
 		dbg.Log(s1);
 		// hook this
@@ -988,7 +989,7 @@ int __stdcall mysub_4AFAC0(LPVOID buf, DWORD num, int u2, DWORD* a4)
 		}
 		SetFilePointer(handle, pos + 8, NULL, FILE_BEGIN); // reset file pointer
 		VirtualFS::SetFilePointer(handle, pos + 8, NULL, FILE_BEGIN); // reset file pointer
-		
+
 		// check hash for replacement
 		VirtualFS::Region* region = VirtualFS::resolve_region(handle, pos);
 		unsigned hash = simple_hash((const unsigned char*)region->data.data(), region->size);
@@ -1450,27 +1451,47 @@ char __cdecl TooltipKeyword_Callback(int mode, int button_node, int* callback_ct
 }
 
 
-static bool HasNonTooltipButtonForCurrentText(DWORD* text_field)
+struct CurrentTextButtonKinds
 {
+	bool has_tooltip;
+	bool has_non_tooltip;
+};
+
+static CurrentTextButtonKinds GetCurrentTextButtonKinds(DWORD* text_field)
+{
+	CurrentTextButtonKinds kinds{};
 	if (!text_field)
-		return false;
+		return kinds;
 	const DWORD key = text_field[0xB4 / 4];
 	if (key == 0xFFFFFFFF)
-		return false;
+		return kinds;
 	DWORD* const list_head = reinterpret_cast<DWORD*>(text_field[0x54 / 4]);
 	if (!list_head)
-		return false;
+		return kinds;
 
 	const DWORD sentinel = reinterpret_cast<DWORD>(list_head);
 	DWORD node_ptr = list_head[0];
 	for (unsigned guard = 0; guard < 0x4000 && node_ptr && node_ptr != sentinel; ++guard)
 	{
 		const DWORD* const node = reinterpret_cast<const DWORD*>(node_ptr);
-		if (node[7] == key && !IsTooltipButtonNode(node))
-			return true;
+		if (node[7] == key)
+		{
+			if (IsTooltipButtonNode(node))
+				kinds.has_tooltip = true;
+			else
+			{
+				kinds.has_non_tooltip = true;
+				break;
+			}
+		}
 		node_ptr = node[0];
 	}
-	return false;
+	return kinds;
+}
+
+static bool HasNonTooltipButtonForCurrentText(DWORD* text_field)
+{
+	return GetCurrentTextButtonKinds(text_field).has_non_tooltip;
 }
 
 static bool IsSkipModeActive()
@@ -1505,7 +1526,7 @@ static bool IsAutoModeActive()
 	}
 }
 
-// has active button key?
+// TextField_HasActiveButtonKey
 HOOKJMP hksub_48F7E0;
 __declspec(naked) char __cdecl orgsub_48F7E0(DWORD* text_field)
 {
@@ -1589,24 +1610,32 @@ static bool RegisterTooltipButtonRegion(
 	return ok != 0;
 }
 
+static const std::vector<TooltipEntry>* FindTooltipEntriesForTextKey(LONG key)
+{
+	if (key < 0)
+		return nullptr;
+
+	const std::uint16_t cdnum = static_cast<std::uint16_t>((key >> 16) & 0xFFFF);
+	const std::uint16_t text_idx = static_cast<std::uint16_t>(key & 0xFFFF);
+	auto cd_it = tip_map.find(cdnum);
+	if (cd_it == tip_map.end())
+		return nullptr;
+	auto idx_it = cd_it->second.find(text_idx);
+	if (idx_it == cd_it->second.end() || idx_it->second.empty())
+		return nullptr;
+	return &idx_it->second;
+}
+
 static void RegisterTooltipsForCurrentText(DWORD* text_field, unsigned line_idx, unsigned glyph_idx)
 {
 	if (!text_field)
 		return;
 	LONG key = InterlockedCompareExchange(&g_cur_text_key, 0, 0);
-	if (key < 0)
-		return;
-	std::uint16_t cdnum = static_cast<std::uint16_t>((key >> 16) & 0xFFFF);
-	std::uint16_t text_idx = static_cast<std::uint16_t>(key & 0xFFFF);
-
-	auto cd_it = tip_map.find(cdnum);
-	if (cd_it == tip_map.end())
-		return;
-	auto idx_it = cd_it->second.find(text_idx);
-	if (idx_it == cd_it->second.end())
+	const std::vector<TooltipEntry>* const tips = FindTooltipEntriesForTextKey(key);
+	if (!tips)
 		return;
 
-	for (const auto& tip : idx_it->second)
+	for (const auto& tip : *tips)
 	{
 		if (tip.line == 0 || tip.start == 0 || tip.len == 0)
 			continue;
@@ -1620,6 +1649,47 @@ static void RegisterTooltipsForCurrentText(DWORD* text_field, unsigned line_idx,
 			continue;
 
 		RegisterTooltipButtonRegion(text_field, line0, start0, len, &tip);
+	}
+}
+
+static bool GetRenderedTextKeyFromAdvTextInfoPack(DWORD pack, LONG* key)
+{
+	if (!pack || !key)
+		return false;
+
+	__try
+	{
+		const int text_idx = *reinterpret_cast<int*>(pack + 0x10);
+		const int cdnum = *reinterpret_cast<int*>(pack + 0x14);
+		if (text_idx < 0 || text_idx > 0xFFFF || cdnum < 0 || cdnum > 0xFFFF)
+			return false;
+
+		const LONG packed_key = PackTextKey(static_cast<std::uint16_t>(cdnum), static_cast<std::uint16_t>(text_idx));
+		if (!FindTooltipEntriesForTextKey(packed_key))
+			return false;
+
+		*key = packed_key;
+		return true;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return false;
+	}
+}
+
+static void __stdcall CaptureRenderTextOnAttribs(DWORD* text_field, unsigned line_idx, unsigned glyph_idx, DWORD thib)
+{
+	g_last_register_tfl = static_cast<LONG>(reinterpret_cast<DWORD>(text_field));
+	g_last_register_line_idx = static_cast<LONG>(line_idx);
+	g_last_register_glyph_idx = static_cast<LONG>(glyph_idx);
+
+	LONG key = -1;
+	// CAdvTextInfoPack has THIB1 at +0xA0 and THIB2 at +0xC0.
+	if (g_tooltip_allow_autosave && thib &&
+		(GetRenderedTextKeyFromAdvTextInfoPack(thib - 0xA0, &key) ||
+			GetRenderedTextKeyFromAdvTextInfoPack(thib - 0xC0, &key)))
+	{
+		InterlockedExchange(&g_cur_text_key, key);
 	}
 }
 
@@ -1649,6 +1719,107 @@ static DWORD* GetActiveScenarioTextField()
 	}
 }
 
+static bool CurrentTextHasOnlyTooltipButtons()
+{
+	__try
+	{
+		DWORD* const text_field = GetActiveScenarioTextField();
+		if (!text_field)
+			return false;
+		const CurrentTextButtonKinds kinds = GetCurrentTextButtonKinds(text_field);
+		return kinds.has_tooltip && !kinds.has_non_tooltip;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return false;
+	}
+}
+
+static void ClearTooltipButtonRegistrationState()
+{
+	g_tooltip_registered_key_by_field.clear();
+	InterlockedExchange(&g_last_register_tfl, 0);
+	InterlockedExchange(&g_last_register_line_idx, 0);
+	InterlockedExchange(&g_last_register_glyph_idx, 0);
+}
+
+// LocalSaveHistory_RecordCurrentState
+HOOKJMP hksub_467C60;
+
+static void __fastcall orgsub_467C60(int unused, int history_type)
+{
+	auto org = reinterpret_cast<void(__fastcall*)(int, int)>(hksub_467C60.get());
+	org(unused, history_type);
+}
+
+static bool ShouldSuppressTooltipOnlyAutoSaveHistory(int history_type)
+{
+	// History type 4 is the right-click AutoSave entry for link text.
+	if (history_type != 4)
+		return false;
+	if (!g_tooltip_enabled || g_tooltip_allow_autosave)
+		return false;
+
+	return CurrentTextHasOnlyTooltipButtons();
+}
+
+static void __fastcall mysub_467C60(int unused, int history_type)
+{
+	if (ShouldSuppressTooltipOnlyAutoSaveHistory(history_type))
+		return;
+
+	orgsub_467C60(unused, history_type);
+}
+
+__declspec(naked) void __cdecl sub_467C60()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		call mysub_467C60
+		leave
+		ret
+	}
+}
+
+// LocalSaveHistory_LoadCurrentSlotIntoScene
+HOOKJMP hksub_466840;
+
+static char __stdcall orgsub_466840(int a1, int a2, int a3, int a4)
+{
+	auto org = reinterpret_cast<char(__stdcall*)(int, int, int, int)>(hksub_466840.get());
+	return org(a1, a2, a3, a4);
+}
+
+static char __stdcall mysub_466840(int a1, int a2, int a3, int a4)
+{
+	const char ok = orgsub_466840(a1, a2, a3, a4);
+	if (ok)
+	{
+		TooltipPopup::Hide();
+		ClearTooltipButtonRegistrationState();
+		InterlockedExchange(&g_cur_text_key, -1);
+	}
+	return ok;
+}
+
+__declspec(naked) char __cdecl sub_466840()
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push dword ptr[ebp + 14h]
+		push dword ptr[ebp + 10h]
+		push dword ptr[ebp + 0Ch]
+		push dword ptr[ebp + 8]
+		call mysub_466840
+		leave
+		ret 10h
+	}
+}
+
 static DWORD g_render_text_on_attribs_trampoline = 0;
 
 // RenderTextOnAttribs, get line and glyph
@@ -1666,13 +1837,17 @@ __declspec(naked) char __cdecl sub_4868D0()
 		// After 4 pushes:
 		// [esp+00] = saved edi  (TextField*)
 		// [esp+04] = saved ecx  (glyph_idx)
+		// [esp+1C] = original [esp+0C] (THIB stack arg)
 		// [esp+28] = original [esp+18] (line_idx stack arg)
-		mov eax, dword ptr[esp + 28h]
-		mov dword ptr[g_last_register_line_idx], eax
-		mov eax, dword ptr[esp + 4]
-		mov dword ptr[g_last_register_glyph_idx], eax
-		mov eax, dword ptr[esp + 0]
-		mov dword ptr[g_last_register_tfl], eax
+		mov eax, dword ptr[esp + 1Ch]
+		mov edx, dword ptr[esp + 28h]
+		mov ecx, dword ptr[esp + 4]
+		mov edi, dword ptr[esp + 0]
+		push eax
+		push ecx
+		push edx
+		push edi
+		call CaptureRenderTextOnAttribs
 
 		lea ecx, hksub_4868D0
 		call HOOKJMP::get
@@ -1764,10 +1939,7 @@ static void ResetTooltipRuntimeState(const wchar_t* reason)
 {
 	TooltipPopup::Hide();
 	InterlockedExchange(&g_cur_text_key, -1);
-	InterlockedExchange(&g_last_register_tfl, 0);
-	InterlockedExchange(&g_last_register_line_idx, 0);
-	InterlockedExchange(&g_last_register_glyph_idx, 0);
-	g_tooltip_registered_key_by_field.clear();
+	ClearTooltipButtonRegistrationState();
 	if (reason)
 	{
 		std::wstring msg = L"Tooltip runtime reset: ";
@@ -1815,7 +1987,6 @@ __declspec(naked) DWORD* __cdecl sub_493090()
 	}
 }
 
-
 // ---------------------------------------------------------------------
 // Tooltip save/load hook stubs.
 // Current patch has no tooltip viewed-state persistence behavior.
@@ -1861,7 +2032,7 @@ __declspec(naked) char __cdecl sub_462550()
 	}
 }
 
-// load hyper links
+// Hide active tooltip when a regular local-scene load completes.
 HOOKJMP hksub_4621D0;
 using tpSub_4621D0 = char(__stdcall*)(DWORD*, HANDLE);
 char __stdcall orgsub_4621D0(DWORD* local_scene_pack, HANDLE hFile)
@@ -1871,7 +2042,6 @@ char __stdcall orgsub_4621D0(DWORD* local_scene_pack, HANDLE hFile)
 }
 char __stdcall mysub_4621D0(DWORD* local_scene_pack, HANDLE hFile)
 {
-	dbg.Log(L"Loading local scene pack...");
 	const char ok = orgsub_4621D0(local_scene_pack, hFile);
 	if (!ok)
 		return 0;
@@ -1903,7 +2073,7 @@ wstring MBTWS(const char* str, int page)
 		dbg.FatalPopup(L"MBTWS() failed");
 #pragma warning(push)
 #pragma warning(disable: 6001)
-	wstring s{wstr};
+	wstring s{ wstr };
 #pragma warning(pop)
 	delete[]wstr;
 	return s;
@@ -1943,6 +2113,7 @@ namespace DbgWindow
 	static HWND           g_chkEnableTooltip = nullptr;
 	static HWND           g_chkInterruptSkip = nullptr;
 	static HWND           g_chkInterruptAuto = nullptr;
+	static HWND           g_chkAllowAutoSave = nullptr;
 	static std::mutex     g_settingsMutex;
 
 	HHOOK g_kbHook = nullptr;
@@ -2121,10 +2292,10 @@ namespace DbgWindow
 			DestroyWindow(hWnd);
 			return 0;
 
-		/*case WM_SYSCOMMAND:
-			if ((wParam & 0xFFF0) == SC_CLOSE)
-				return 0;  // Ignore close
-			break;*/
+			/*case WM_SYSCOMMAND:
+				if ((wParam & 0xFFF0) == SC_CLOSE)
+					return 0;  // Ignore close
+				break;*/
 
 		case WM_DESTROY:
 			if (g_hFont) { DeleteObject(g_hFont); g_hFont = nullptr; currentPt = 0; }
@@ -2189,6 +2360,7 @@ namespace DbgWindow
 		IDC_CHK_ENABLE_TOOLTIP = 5102,
 		IDC_CHK_INTERRUPT_SKIP = 5103,
 		IDC_CHK_INTERRUPT_AUTO = 5104,
+		IDC_CHK_ALLOW_AUTOSAVE = 5105,
 	};
 
 	static void sync_settings_controls()
@@ -2199,10 +2371,14 @@ namespace DbgWindow
 			SendMessageW(g_chkInterruptSkip, BM_SETCHECK, g_tooltip_interrupt_skip ? BST_CHECKED : BST_UNCHECKED, 0);
 		if (g_chkInterruptAuto)
 			SendMessageW(g_chkInterruptAuto, BM_SETCHECK, g_tooltip_interrupt_auto ? BST_CHECKED : BST_UNCHECKED, 0);
+		if (g_chkAllowAutoSave)
+			SendMessageW(g_chkAllowAutoSave, BM_SETCHECK, g_tooltip_allow_autosave ? BST_CHECKED : BST_UNCHECKED, 0);
 		if (g_chkInterruptSkip)
 			EnableWindow(g_chkInterruptSkip, g_tooltip_enabled ? TRUE : FALSE);
 		if (g_chkInterruptAuto)
 			EnableWindow(g_chkInterruptAuto, g_tooltip_enabled ? TRUE : FALSE);
+		if (g_chkAllowAutoSave)
+			EnableWindow(g_chkAllowAutoSave, g_tooltip_enabled ? TRUE : FALSE);
 	}
 
 	static LRESULT CALLBACK SettingsWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -2226,6 +2402,10 @@ namespace DbgWindow
 			g_chkInterruptAuto = CreateWindowExW(0, L"BUTTON", L"Tooltip can interrupt Auto",
 				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 				12, 98, 260, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_INTERRUPT_AUTO, g_hInst, nullptr);
+
+			g_chkAllowAutoSave = CreateWindowExW(0, L"BUTTON", L"Tooltip can appear in AutoSave",
+				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+				12, 124, 270, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_ALLOW_AUTOSAVE, g_hInst, nullptr);
 
 			sync_settings_controls();
 			return 0;
@@ -2253,6 +2433,10 @@ namespace DbgWindow
 				if (g_chkInterruptAuto)
 					g_tooltip_interrupt_auto = (SendMessageW(g_chkInterruptAuto, BM_GETCHECK, 0, 0) == BST_CHECKED);
 				return 0;
+			case IDC_CHK_ALLOW_AUTOSAVE:
+				if (g_chkAllowAutoSave)
+					g_tooltip_allow_autosave = (SendMessageW(g_chkAllowAutoSave, BM_GETCHECK, 0, 0) == BST_CHECKED);
+				return 0;
 			default:
 				break;
 			}
@@ -2266,6 +2450,7 @@ namespace DbgWindow
 			g_chkEnableTooltip = nullptr;
 			g_chkInterruptSkip = nullptr;
 			g_chkInterruptAuto = nullptr;
+			g_chkAllowAutoSave = nullptr;
 			g_settingsWnd = nullptr;
 			PostQuitMessage(0);
 			return 0;
@@ -2287,7 +2472,7 @@ namespace DbgWindow
 			wc.lpszClassName = kClass;
 			RegisterClassExW(&wc);
 
-			RECT rc{ 0, 0, 290, 140 };
+			RECT rc{ 0, 0, 290, 166 };
 			AdjustWindowRectEx(&rc, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, FALSE,
 				WS_EX_TOPMOST | WS_EX_TOOLWINDOW);
 
@@ -2464,10 +2649,7 @@ void LogCurText(DWORD* buf)
 	if (prev_key != cur_key)
 	{
 		TooltipPopup::Hide(); // next text always clears any active tooltip
-		g_tooltip_registered_key_by_field.clear();
-		InterlockedExchange(&g_last_register_tfl, 0);
-		InterlockedExchange(&g_last_register_line_idx, 0);
-		InterlockedExchange(&g_last_register_glyph_idx, 0);
+		ClearTooltipButtonRegistrationState();
 		prev_key = cur_key;
 	}
 
@@ -2488,7 +2670,7 @@ void LogCurText(DWORD* buf)
 		for (const auto& hyp : hyp_map[cdnum][idx])
 		{
 			auto [line, start, len] = hyp;
-			if (! (line - 1 < texts.size() && start - 1 + len < texts[line - 1].size()))
+			if (!(line - 1 < texts.size() && start - 1 + len < texts[line - 1].size()))
 				line++; // maybe character name
 			if (line != prev_line && line - 1 < texts.size() && start - 1 + len < texts[line - 1].size())
 			{
@@ -2539,28 +2721,28 @@ bool CheckLoader()
 	}
 
 	auto LReadFileToBuf = [](const wstring& path, void*& buf) -> DWORD
-	{
-		HANDLE hFile = CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-		if (hFile == INVALID_HANDLE_VALUE)
-			return 0;
-		DWORD dwSize = GetFileSize(hFile, NULL);
-		if (dwSize == INVALID_FILE_SIZE)
-			return 0;
-		buf = new char[dwSize];
-		DWORD dwRead;
-		if (!ReadFile(hFile, buf, dwSize, &dwRead, NULL))
-			return 0;
-		CloseHandle(hFile);
-		return (dwSize == dwRead ? dwSize : 0);
-	};
+		{
+			HANDLE hFile = CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hFile == INVALID_HANDLE_VALUE)
+				return 0;
+			DWORD dwSize = GetFileSize(hFile, NULL);
+			if (dwSize == INVALID_FILE_SIZE)
+				return 0;
+			buf = new char[dwSize];
+			DWORD dwRead;
+			if (!ReadFile(hFile, buf, dwSize, &dwRead, NULL))
+				return 0;
+			CloseHandle(hFile);
+			return (dwSize == dwRead ? dwSize : 0);
+		};
 
 	auto LBuffHash = [](const void* buf, int len) -> __int64
-	{
-		__int64 hash = 0;
-		for (int i = 0; i < len; i++)
-			hash = (hash << 5) + hash + ((unsigned char*)buf)[i];
-		return hash;
-	};
+		{
+			__int64 hash = 0;
+			for (int i = 0; i < len; i++)
+				hash = (hash << 5) + hash + ((unsigned char*)buf)[i];
+			return hash;
+		};
 
 	LPVOID lpBuffer{}; DWORD dwLength;
 	if ((dwLength = LReadFileToBuf(L"HD\\gd.arc", lpBuffer)) == 0)
@@ -2583,9 +2765,9 @@ void MainProc()
 	if (!CheckLoader())
 		ExitProcess(0);
 
-	DWORD base = (DWORD) GetModuleHandleA(NULL);
+	DWORD base = (DWORD)GetModuleHandleA(NULL);
 	bool suc = true;
-	
+
 	// patch font validation (deprecated)
 	/*const BYTE _PFont1[] = {"\xCB\xCE\xCC\xE5"}; // GBK 宋体
 	suc = HOOK::patch(base + 0xFA874, (BYTE)0, 0xD) && HOOK::patch(base + 0xFA874, _PFont1, sizeof(_PFont1));
@@ -2596,12 +2778,12 @@ void MainProc()
 	if (!suc)
 		dbg.FatalPopup(L"Unable to patch unk_4FA870");*/
 
-	// load custom font (deprecated)
-	/*suc = AddFontResourceExW(L".\\LXGWWenKai-Regular.ttf", FR_PRIVATE, NULL);
-	if (!suc)
-		dbg.FatalPopup(L"Unable to load custom font LXGWWenKai-Regular.ttf");*/
+		// load custom font (deprecated)
+		/*suc = AddFontResourceExW(L".\\LXGWWenKai-Regular.ttf", FR_PRIVATE, NULL);
+		if (!suc)
+			dbg.FatalPopup(L"Unable to load custom font LXGWWenKai-Regular.ttf");*/
 
-	// patch font validation mbscmp()
+			// patch font validation mbscmp()
 	suc = HOOK::patch(base + 0x87E52, (BYTE)0xEB, 0x1);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to patch hex:487E52 JMP");
@@ -2615,7 +2797,7 @@ void MainProc()
 	suc = HOOK::patch(base + 0xB188D, (BYTE)0xEB, 0x1); // JMP
 	if (!suc)
 		dbg.FatalPopup(L"Unable to patch hex:4B188D JMP");
-	
+
 	// patch WINAPI
 	suc = hkCreateWindowExA.hook(myCreateWindowExA, CreateWindowExA, 5);
 	if (!suc)
@@ -2653,12 +2835,12 @@ void MainProc()
 	suc = hkSetWindowText.hook(mySetWindowTextA, SetWindowTextA, 5);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook SetWindowTextA");
-	
+
 
 	suc = hksub_475E90.hook(sub_475E90, (LPVOID)(base + 0x75E90), 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook sub_475E90 ReadScriptText");
-	
+
 	suc = hksub_472AB0.hook(sub_472AB0, (LPVOID)(base + 0x72AB0), 6);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook sub_472AB0 ReadFuncFromGCScenario");
@@ -2674,7 +2856,7 @@ void MainProc()
 	suc = hkinst_478330.hook(inst_478330, (LPVOID)(base + 0x78330), 7);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook inst_478330 (in sub_478330) ScriptInstruction_0x96_Unknown_Menu");
-	
+
 
 	suc = hkRoundKey.hook(gdRoundKey, (LPVOID)(base + 0xA7BE0), 8);
 	if (!suc)
@@ -2702,6 +2884,12 @@ void MainProc()
 	suc = hksub_48F7E0.hook(sub_48F7E0, (LPVOID)(base + 0x8F7E0), 10);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook sub_48F7E0 TextField_HasActiveButtonKey");
+	suc = hksub_467C60.hook(sub_467C60, (LPVOID)(base + 0x67C60), 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_467C60 LocalSaveHistory_RecordCurrentState");
+	suc = hksub_466840.hook(sub_466840, (LPVOID)(base + 0x66840), 10);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook sub_466840 LocalSaveHistory_LoadCurrentSlotIntoScene");
 	suc = hksub_4868D0.hook(sub_4868D0, (LPVOID)(base + 0x868D0), 9);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook RenderTextOnAttribs (0x4868D0)");
@@ -2760,7 +2948,7 @@ void MainProc()
 								}
 								else
 								{
-invalid:
+								invalid:
 									dbg.Log(L"Invalid PNG filename format: " + filename);
 									CloseHandle(file);
 									continue;

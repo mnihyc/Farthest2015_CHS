@@ -165,7 +165,7 @@ HWND WINAPI myCreateWindowExA(
 	tpCreateWindowExA CWEA = static_cast<tpCreateWindowExA>(hkCreateWindowExA.get());
 	const bool probable_main_window = (lpClassName == lpWindowName);
 	if (probable_main_window)
-		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xa1\xaa\xa1\xaa \xb2\xe2\xca\xd4\xba\xba\xbb\xaf\xb2\xb9\xb6\xa1 v0.3.5 PRE-RELEASE (2026.5.15)"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
+		lpWindowName = "\xd7\xee\xb9\xfb\xa4\xc6\xa4\xce\xa5\xa4\xa5\xde COMPLETE \xbc\xf2\xcc\xe5\xd6\xd0\xce\xc4\xb0\xe6 v1"; // 最果てのイマ COMPLETE —— 测试汉化补丁 v0.1 (2025.07.03)
 	HWND ret = CWEA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 	if (ret && probable_main_window)
 		g_game_main_hwnd = ret;
@@ -2103,8 +2103,8 @@ namespace DbgWindow
 	static HWND           g_hWnd = nullptr;
 	//static HWND           g_hLabel = nullptr;
 	static HFONT          g_hFont = nullptr;   // currently selected font
-	static std::wstring   g_text = L"Wait Until Scenario ......\n";
-	static std::wstring   g_caption = L"Debug Window";
+	static std::wstring   g_text = L"等待文本 ......\n";
+	static std::wstring   g_caption = L"调试窗口";
 	static std::mutex     g_stateMutex;        // protects caption/text swaps
 
 	// for translation settings window
@@ -2114,6 +2114,7 @@ namespace DbgWindow
 	static HWND           g_chkInterruptSkip = nullptr;
 	static HWND           g_chkInterruptAuto = nullptr;
 	static HWND           g_chkAllowAutoSave = nullptr;
+	static HFONT          g_settingsFont = nullptr;
 	static std::mutex     g_settingsMutex;
 
 	HHOOK g_kbHook = nullptr;
@@ -2387,25 +2388,44 @@ namespace DbgWindow
 		{
 		case WM_CREATE:
 		{
-			g_btnShowDebug = CreateWindowExW(0, L"BUTTON", L"Show Debug Window (Alt+N)",
+			g_btnShowDebug = CreateWindowExW(0, L"BUTTON", L"显示原文/调试窗口 (Alt+N)",
 				WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
 				12, 12, 245, 26, hWnd, (HMENU)(INT_PTR)IDC_BTN_SHOW_DEBUG, g_hInst, nullptr);
 
-			g_chkEnableTooltip = CreateWindowExW(0, L"BUTTON", L"Enable Tooltip",
+			g_chkEnableTooltip = CreateWindowExW(0, L"BUTTON", L"开启 Tooltip（译注）",
 				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 				12, 46, 260, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_ENABLE_TOOLTIP, g_hInst, nullptr);
 
-			g_chkInterruptSkip = CreateWindowExW(0, L"BUTTON", L"Tooltip can interrupt Skip",
+			g_chkInterruptSkip = CreateWindowExW(0, L"BUTTON", L"遇到 Tooltip 时停止跳过模式",
 				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 				12, 72, 260, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_INTERRUPT_SKIP, g_hInst, nullptr);
 
-			g_chkInterruptAuto = CreateWindowExW(0, L"BUTTON", L"Tooltip can interrupt Auto",
+			g_chkInterruptAuto = CreateWindowExW(0, L"BUTTON", L"遇到 Tooltip 时停止自动模式",
 				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 				12, 98, 260, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_INTERRUPT_AUTO, g_hInst, nullptr);
 
-			g_chkAllowAutoSave = CreateWindowExW(0, L"BUTTON", L"Tooltip can appear in AutoSave",
+			g_chkAllowAutoSave = CreateWindowExW(0, L"BUTTON", L"Tooltip 出现时自动存档",
 				WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
 				12, 124, 270, 22, hWnd, (HMENU)(INT_PTR)IDC_CHK_ALLOW_AUTOSAVE, g_hInst, nullptr);
+
+			HDC hdc = GetDC(hWnd);
+			const int dpiY = hdc ? GetDeviceCaps(hdc, LOGPIXELSY) : 96;
+			if (hdc)
+				ReleaseDC(hWnd, hdc);
+			g_settingsFont = CreateFontW(
+				-MulDiv(10, dpiY, 72), 0, 0, 0, FW_NORMAL,
+				FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+				OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+				DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+			if (g_settingsFont)
+			{
+				for (HWND control : { g_btnShowDebug, g_chkEnableTooltip, g_chkInterruptSkip,
+					g_chkInterruptAuto, g_chkAllowAutoSave })
+				{
+					if (control)
+						SendMessageW(control, WM_SETFONT, (WPARAM)g_settingsFont, TRUE);
+				}
+			}
 
 			sync_settings_controls();
 			return 0;
@@ -2451,6 +2471,11 @@ namespace DbgWindow
 			g_chkInterruptSkip = nullptr;
 			g_chkInterruptAuto = nullptr;
 			g_chkAllowAutoSave = nullptr;
+			if (g_settingsFont)
+			{
+				DeleteObject(g_settingsFont);
+				g_settingsFont = nullptr;
+			}
 			g_settingsWnd = nullptr;
 			PostQuitMessage(0);
 			return 0;
@@ -2479,7 +2504,7 @@ namespace DbgWindow
 			g_settingsWnd = CreateWindowExW(
 				WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
 				kClass,
-				L"Translation Settings",
+				L"翻译设置",
 				WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
 				CW_USEDEFAULT, CW_USEDEFAULT,
 				rc.right - rc.left, rc.bottom - rc.top,
@@ -2632,6 +2657,68 @@ namespace DbgWindow
 
 }
 
+
+// Add the translation settings command to the game's scenario context menu.
+// The engine finishes its position-based menu filtering before it calls
+// TrackPopupMenuEx, so this hook can safely insert the command next to Settings.
+HOOKJMP hkTrackPopupMenuEx;
+typedef BOOL(WINAPI* tpTrackPopupMenuEx)(HMENU, UINT, int, int, HWND, LPTPMPARAMS);
+
+static constexpr UINT kGameSettingsMenuId = 0x9C59;
+static constexpr UINT kTranslationSettingsMenuId = 0xE101;
+
+static int FindMenuItemPosition(HMENU hMenu, UINT commandId)
+{
+	const int itemCount = GetMenuItemCount(hMenu);
+	for (int position = 0; position < itemCount; ++position)
+	{
+		if (GetMenuItemID(hMenu, position) == commandId)
+			return position;
+	}
+	return -1;
+}
+
+static BOOL WINAPI myTrackPopupMenuEx(
+	HMENU hMenu,
+	UINT uFlags,
+	int x,
+	int y,
+	HWND hWnd,
+	LPTPMPARAMS lptpm)
+{
+	const int settingsPosition = FindMenuItemPosition(hMenu, kGameSettingsMenuId);
+	const bool isScenarioMenu = (uFlags & TPM_RETURNCMD) != 0 && settingsPosition >= 0;
+
+	if (isScenarioMenu && FindMenuItemPosition(hMenu, kTranslationSettingsMenuId) < 0)
+	{
+		static wchar_t label[] = L"翻译设置(M)...\tAlt+M";
+		MENUITEMINFOW item{};
+		item.cbSize = sizeof(item);
+		item.fMask = MIIM_ID | MIIM_STRING | MIIM_FTYPE | MIIM_STATE;
+		item.fType = MFT_STRING;
+		item.fState = MFS_ENABLED;
+		item.wID = kTranslationSettingsMenuId;
+		item.dwTypeData = label;
+		item.cch = _countof(label) - 1;
+
+		// Insert before the separator which originally follows Settings.
+		InsertMenuItemW(hMenu, settingsPosition + 1, TRUE, &item);
+	}
+
+	tpTrackPopupMenuEx TrackPopupMenuEx_Original =
+		static_cast<tpTrackPopupMenuEx>(hkTrackPopupMenuEx.get());
+	if (!TrackPopupMenuEx_Original)
+		return FALSE;
+
+	BOOL result = TrackPopupMenuEx_Original(hMenu, uFlags, x, y, hWnd, lptpm);
+	if (isScenarioMenu && static_cast<UINT>(result) == kTranslationSettingsMenuId)
+	{
+		DbgWindow::show_or_open_settings_window();
+		return FALSE; // make the engine handle this like its Cancel command
+	}
+	return result;
+}
+
 void LogCurText(DWORD* buf)
 {
 	DWORD base = (DWORD)GetModuleHandleA(NULL);
@@ -2656,7 +2743,7 @@ void LogCurText(DWORD* buf)
 	static wchar_t tmp[1024];
 	wsprintf(tmp, L"cdnum: %04d, text index: 0x%x", cdnum, idx);
 	dbg.Log(tmp);
-	wsprintf(tmp, L"Debug Window  (cd: %04d | off: 0x%x | text: 0x%x)", cdnum, offset, idx);
+	wsprintf(tmp, L"调试窗口 (cd: %04d | off: 0x%x | text: 0x%x)", cdnum, offset, idx);
 	DbgWindow::update_caption(tmp);
 	if (!jap_map[cdnum].contains(idx) || jap_map[cdnum][idx].empty())
 	{
@@ -2699,7 +2786,7 @@ void LogCurInst()
 	static wchar_t tmp[1024];
 	wsprintf(tmp, L"cdnum: %04d, inst offset: 0x%x", cdnum, offset);
 	dbg.Log(tmp);
-	wsprintf(tmp, L"Debug Window  (cd: %04d | off: 0x%x)", cdnum, offset);
+	wsprintf(tmp, L"调试窗口 (cd: %04d | off: 0x%x)", cdnum, offset);
 	DbgWindow::update_caption(tmp);
 }
 
@@ -2747,12 +2834,12 @@ bool CheckLoader()
 	LPVOID lpBuffer{}; DWORD dwLength;
 	if ((dwLength = LReadFileToBuf(L"HD\\gd.arc", lpBuffer)) == 0)
 	{
-		dbg.FatalPopup(L"Put this file into the Farthest2015 installation path!");
+		dbg.FatalPopup(L"请将此文件放入完整版 Farthest2015.exe 同目录下！");
 		return false;
 	}
 	if (LBuffHash(lpBuffer, dwLength) != 0xc655c64a2457fefa)
 	{
-		dbg.FatalPopup(L"Only Farthest2015 COMPLETE version is supported!");
+		dbg.FatalPopup(L"仅支持 Farthest2015 COMPLETE 版本！");
 		return false;
 	}
 	delete[] lpBuffer; lpBuffer = nullptr; dwLength = 0;
@@ -2835,6 +2922,9 @@ void MainProc()
 	suc = hkSetWindowText.hook(mySetWindowTextA, SetWindowTextA, 5);
 	if (!suc)
 		dbg.FatalPopup(L"Unable to hook SetWindowTextA");
+	suc = hkTrackPopupMenuEx.hook(myTrackPopupMenuEx, TrackPopupMenuEx, 6);
+	if (!suc)
+		dbg.FatalPopup(L"Unable to hook TrackPopupMenuEx");
 
 
 	suc = hksub_475E90.hook(sub_475E90, (LPVOID)(base + 0x75E90), 6);

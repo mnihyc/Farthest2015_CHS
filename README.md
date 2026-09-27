@@ -1,6 +1,6 @@
 **2026.09.27 ：简体中文版 v1 正式发布**
 
-前往 https://github.com/mnihyc/Farthest2015_CHS/releases 下载
+前往 [Releases](https://github.com/mnihyc/Farthest2015_CHS/releases) 下载
 
 ---
 
